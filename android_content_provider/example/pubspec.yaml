@@ -1,0 +1,21 @@
+name: android_content_provider_example
+description: Demonstrates how to use the android_content_provider plugin.
+publish_to: 'none'
+
+environment:
+  sdk: ">=2.15.0-233.0.dev <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  android_content_provider:
+    path: ../
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^1.0.0
+
+flutter:
+  uses-material-design: true

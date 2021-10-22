@@ -1,0 +1,27 @@
+name: android_content_provider
+description: Flutter plugin to create and talk to Android ContentProviders.
+version: 0.0.1
+homepage: https://github.com/nt4f04uNd/android_content_provider/tree/master/android_content_provider
+
+environment:
+  sdk: ">=2.15.0-233.0.dev <3.0.0"
+  flutter: ">=2.5.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  android_content_provider_platform_interface:
+    path: ../android_content_provider_platform_interface
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^1.0.0
+  pigeon: ^1.0.7
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.nt4f04und.android_content_provider
+        pluginClass: AndroidContentProviderPlugin
