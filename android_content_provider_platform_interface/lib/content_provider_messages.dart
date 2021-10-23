@@ -25,10 +25,12 @@ class CreateMessage {
 }
 
 class GetTypeMessage {
+  String? authority;
   String? uri;
 
   Object encode() {
     final Map<Object?, Object?> pigeonMap = <Object?, Object?>{};
+    pigeonMap['authority'] = authority;
     pigeonMap['uri'] = uri;
     return pigeonMap;
   }
@@ -36,6 +38,7 @@ class GetTypeMessage {
   static GetTypeMessage decode(Object message) {
     final Map<Object?, Object?> pigeonMap = message as Map<Object?, Object?>;
     return GetTypeMessage()
+      ..authority = pigeonMap['authority'] as String?
       ..uri = pigeonMap['uri'] as String?;
   }
 }

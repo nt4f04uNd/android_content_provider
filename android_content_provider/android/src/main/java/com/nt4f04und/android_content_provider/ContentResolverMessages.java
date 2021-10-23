@@ -17,7 +17,7 @@ import java.util.HashMap;
 
 /** Generated class from Pigeon. */
 @SuppressWarnings({"unused", "unchecked", "CodeBlock2Expr", "RedundantSuppression"})
-public class ContentProviderMessages {
+public class ContentResolverMessages {
 
   /** Generated class from Pigeon that represents data sent in messages. */
   public static class CreateMessage {
@@ -63,9 +63,9 @@ public class ContentProviderMessages {
       return fromMapResult;
     }
   }
-  private static class ContentProviderApiCodec extends StandardMessageCodec {
-    public static final ContentProviderApiCodec INSTANCE = new ContentProviderApiCodec();
-    private ContentProviderApiCodec() {}
+  private static class ContentResolverApiCodec extends StandardMessageCodec {
+    public static final ContentResolverApiCodec INSTANCE = new ContentResolverApiCodec();
+    private ContentResolverApiCodec() {}
     @Override
     protected Object readValueOfType(byte type, ByteBuffer buffer) {
       switch (type) {
@@ -96,34 +96,66 @@ public class ContentProviderMessages {
     }
   }
 
-  /** Generated class from Pigeon that represents Flutter messages that can be called from Java.*/
-  public static class ContentProviderApi {
-    private final BinaryMessenger binaryMessenger;
-    public ContentProviderApi(BinaryMessenger argBinaryMessenger){
-      this.binaryMessenger = argBinaryMessenger;
-    }
-    public interface Reply<T> {
-      void reply(T reply);
-    }
+  /** Generated interface from Pigeon that represents a handler of messages from Flutter.*/
+  public interface ContentResolverApi {
+    void create(CreateMessage message);
+    String getType(GetTypeMessage message);
+
+    /** The codec used by ContentResolverApi. */
     static MessageCodec<Object> getCodec() {
-      return ContentProviderApiCodec.INSTANCE;
+      return ContentResolverApiCodec.INSTANCE;
     }
 
-    public void create(CreateMessage messageArg, Reply<Void> callback) {
-      BasicMessageChannel<Object> channel =
-          new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.ContentProviderApi.create", getCodec());
-      channel.send(new ArrayList<Object>(Arrays.asList(messageArg)), channelReply -> {
-        callback.reply(null);
-      });
-    }
-    public void getType(GetTypeMessage messageArg, Reply<String> callback) {
-      BasicMessageChannel<Object> channel =
-          new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.ContentProviderApi.getType", getCodec());
-      channel.send(new ArrayList<Object>(Arrays.asList(messageArg)), channelReply -> {
-        @SuppressWarnings("ConstantConditions")
-        String output = (String)channelReply;
-        callback.reply(output);
-      });
+    /** Sets up an instance of `ContentResolverApi` to handle messages through the `binaryMessenger`. */
+    static void setup(BinaryMessenger binaryMessenger, ContentResolverApi api) {
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.ContentResolverApi.create", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              CreateMessage messageArg = (CreateMessage)args.get(0);
+              if (messageArg == null) {
+                throw new NullPointerException("messageArg unexpectedly null.");
+              }
+              api.create(messageArg);
+              wrapped.put("result", null);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(binaryMessenger, "dev.flutter.pigeon.ContentResolverApi.getType", getCodec());
+        if (api != null) {
+          channel.setMessageHandler((message, reply) -> {
+            Map<String, Object> wrapped = new HashMap<>();
+            try {
+              ArrayList<Object> args = (ArrayList<Object>)message;
+              GetTypeMessage messageArg = (GetTypeMessage)args.get(0);
+              if (messageArg == null) {
+                throw new NullPointerException("messageArg unexpectedly null.");
+              }
+              String output = api.getType(messageArg);
+              wrapped.put("result", output);
+            }
+            catch (Error | RuntimeException exception) {
+              wrapped.put("error", wrapError(exception));
+            }
+            reply.reply(wrapped);
+          });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
     }
   }
   private static Map<String, Object> wrapError(Throwable exception) {
