@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
@@ -142,6 +143,32 @@ class PathPermission {
         'readPermission': readPermission,
         'writePermission': writePermission,
       };
+}
+
+/// This class is used to store a set of values that the content provider/resolver can process
+/// https://developer.android.com/reference/android/content/ContentValues
+class ContentValues {
+  /// Creates [ContentValues].
+  ContentValues() : values = <String, dynamic>{};
+
+  /// Copies values from other [ContentValues] instances.
+  ContentValues.copyFrom(ContentValues other) : values = other.values;
+
+  /// Content values map.
+  final BundleMap values;
+
+
+
+  /// Removes all values.
+  void clear() {
+    Uint8List;
+    values.clear();
+  }
+
+  /// Returns true if this object has a value by given [key].
+  bool containsKey(String key) {
+    return values.containsKey(key);
+  }
 }
 
 /// A communication interface with native Android ContentProvider.
@@ -321,22 +348,31 @@ abstract class AndroidContentProvider {
   /// getType(uri: Uri): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#gettype
   Future<String?> getType(Uri uri);
-  
+
   /// getWritePermission(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getwritepermission
   Future<String> getWritePermission();
 
-  // insert(uri: Uri, values: ContentValues?): Uri?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert
+  /// insert(uri: Uri, values: ContentValues?): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert
+  Future<Uri?> insert(Uri uri, ContentValues? values);
 
-  // insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert_1
+  /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert_1
+  Future<Uri?> insertWithExtras(
+      Uri uri, ContentValues? values, BundleMap? extras);
 
-  // onCallingPackageChanged(): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#oncallingpackagechanged
+  /// onCallingPackageChanged(): Unit
+  /// [WidgetsBindingObserver]
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#oncallingpackagechanged
+  Future<void> onCallingPackageChanged();
 
   // onConfigurationChanged(newConfig: Configuration): Unit
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#onconfigurationchanged
+  //
+  // Use [WidgetsBindingObserver] instead, which listens to application configuration changes.
+  //
+  //
 
   // onCreate(): Boolean
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#oncreate
@@ -346,32 +382,61 @@ abstract class AndroidContentProvider {
   //
   //
 
-  // onLowMemory(): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
+  /// onLowMemory(): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
+  Future<void> onLowMemory();
 
-  // onTrimMemory(level: Int): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
+  /// onTrimMemory(level: Int): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
+  Future<void> onTrimMemory(int level);
 
   // openAssetFile(uri: Uri, mode: String): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openassetfile
+  //
+  // @native, not exposed.
+  //
+  //
 
   // openAssetFile(uri: Uri, mode: String, signal: CancellationSignal?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openassetfile_1
+  //
+  // @native, not exposed.
+  //
 
-  // openFile(uri: Uri, mode: String): ParcelFileDescriptor?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile
+  /// openFile(uri: Uri, mode: String): ParcelFileDescriptor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile
+  Future<Uri> openFile(Uri uri, String mode);
 
   // openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile_1
+  //
+  // @native, not exposed.
+  //
+  //
 
   // openPipeHelper(uri: Uri, mimeType: String, opts: Bundle?, args: T?, func: ContentProvider.PipeDataWriter<T>): ParcelFileDescriptor
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openpipehelper
+  //
+  // @native, not exposed.
+  //
+  // TODO: consider exposing writeDataToPipe to support writing as stream from dart
+  // For example see https://android.googlesource.com/platform/development/+/4779ab6f9aa4d6b691f051e069ffac31475f850a/samples/NotePad/src/com/example/android/notepad/NotePadProvider.java
+  //
+  //
 
   // openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#opentypedassetfile
+  //
+  // @native, not exposed.
+  //
+  //
 
   // openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?, signal: CancellationSignal?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#opentypedassetfile_1
+  //
+  // @native, not exposed.
+  //
+  //
 
   // query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#query

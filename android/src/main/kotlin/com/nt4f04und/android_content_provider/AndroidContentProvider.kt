@@ -2,13 +2,10 @@ package com.nt4f04und.android_content_provider
 
 import android.content.ContentProvider
 import android.content.ContentValues
-import android.content.pm.PathPermission
-import android.database.Cursor
 import android.net.Uri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.FlutterEngineGroup
@@ -87,7 +84,6 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
     }
 
     override fun onCreate(): Boolean {
-        openAssetFile()
         var cachedEngine: FlutterEngine? = null
         flutterEngineCacheId?.let {
             cachedEngine = FlutterEngineCache.getInstance().get(it)
