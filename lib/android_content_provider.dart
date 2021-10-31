@@ -81,38 +81,50 @@ class Pair<T, K> {
   @override
   int get hashCode => hashValues(first, second);
 
-  Pair._fromList(List<Object?> list)
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'Pair')}($first, $second)';
+  }
+
+  /// Creates a pair from list.
+  @visibleForTesting
+  Pair.fromList(List<Object?> list)
       : first = list[0] as T,
         second = list[1] as K;
-  List<Object> _toList() => [first as Object, second as Object];
+
+  /// Converts the pair to list.
+  @visibleForTesting
+  List<Object> toList() => [first as Object, second as Object];
 }
 
 /// Opaque token representing the identity of an incoming IPC.
 class CallingIdentity {
-  /// Creates a [CallingIdentity].
-  const CallingIdentity({
-    required this.binderToken,
-    required this.callingPackage,
-  });
+  const CallingIdentity._(this.id);
 
-  /// The value return by Binder to restore the identity.
-  final int binderToken;
+  /// The ID of this token tied to a native object instance.
+  final int id;
 
-  /// The information about the calling package.
-  ///
-  /// The first value is the package name, the second is an attribution tag.
-  ///
-  /// See info about attribution tags https://developer.android.com/guide/topics/data/audit-access.
-  final Pair<String, String> callingPackage;
+  @override
+  bool operator ==(Object other) {
+    return other is CallingIdentity && other.id == id;
+  }
 
-  factory CallingIdentity._fromMap(BundleMap map) => CallingIdentity(
-        binderToken: map['binderToken'] as int,
-        callingPackage: Pair._fromList(map['callingPackage'] as List),
-      );
-  BundleMap _toMap() => <String, dynamic>{
-        'binderToken': binderToken,
-        'callingPackage': callingPackage._toList(),
-      };
+  @override
+  int get hashCode => id.hashCode;
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'CallingIdentity')}($id)';
+  }
+
+  /// Creates an identity from map.
+  @visibleForTesting
+  factory CallingIdentity.fromMap(BundleMap map) =>
+      CallingIdentity._(map['id'] as int);
+
+  /// Converts the identity to map.
+  @visibleForTesting
+  BundleMap toMap() => <String, dynamic>{'id': id};
 }
 
 /// Description of permissions needed to access a particular path in a content provider
@@ -122,24 +134,44 @@ class CallingIdentity {
 /// on how to declare these paths.
 class PathPermission {
   /// Creates a [PathPermission].
-  PathPermission({
-    required this.readPermission,
-    required this.writePermission,
+  const PathPermission({
+    this.readPermission,
+    this.writePermission,
   });
 
   /// Read permission.
   /// For example "com.example.permission.READ".
-  final String readPermission;
+  final String? readPermission;
 
   /// Write permission.
   /// For example "com.example.permission.WRITE".
-  final String writePermission;
+  final String? writePermission;
 
-  factory PathPermission._fromMap(BundleMap map) => PathPermission(
-        readPermission: map['readPermission'] as String,
-        writePermission: map['writePermission'] as String,
+  @override
+  bool operator ==(Object other) {
+    return other is PathPermission &&
+        other.readPermission == readPermission &&
+        other.writePermission == writePermission;
+  }
+
+  @override
+  int get hashCode => hashValues(readPermission, writePermission);
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'PathPermission')}(read: $readPermission, write: $writePermission)';
+  }
+
+  /// Creates path permissions from map.
+  @visibleForTesting
+  factory PathPermission.fromMap(BundleMap map) => PathPermission(
+        readPermission: map['readPermission'] as String?,
+        writePermission: map['writePermission'] as String?,
       );
-  BundleMap _toMap() => <String, dynamic>{
+
+  /// Converts the path permissions to map.
+  @visibleForTesting
+  BundleMap toMap() => <String, dynamic>{
         'readPermission': readPermission,
         'writePermission': writePermission,
       };
@@ -149,25 +181,310 @@ class PathPermission {
 /// https://developer.android.com/reference/android/content/ContentValues
 class ContentValues {
   /// Creates [ContentValues].
-  ContentValues() : values = <String, dynamic>{};
+  ContentValues() : _map = <String, Object?>{};
+  ContentValues._(Map<String, Object?> map) : _map = map;
 
   /// Copies values from other [ContentValues] instances.
-  ContentValues.copyFrom(ContentValues other) : values = other.values;
+  ContentValues.copyFrom(ContentValues other) : _map = other._map;
 
   /// Content values map.
-  final BundleMap values;
+  final Map<String, Object?> _map;
 
+  @override
+  bool operator ==(Object other) {
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is ContentValues &&
+        mapEquals<Object?, Object?>(_map, other._map);
+  }
 
+  @override
+  int get hashCode => hashList(_map.values);
 
-  /// Removes all values.
-  void clear() {
-    Uint8List;
-    values.clear();
+  @override
+  String toString() {
+    final buffer = StringBuffer('{');
+    bool first = true;
+    for (final entry in entries) {
+      if (!first) {
+        buffer.write(', ');
+      }
+      first = false;
+      buffer.write(entry.key);
+      buffer.write(': ');
+      buffer.write(entry.value);
+    }
+    buffer.write('}');
+    return buffer.toString();
+  }
+
+  /// The number of values.
+  int get length => _map.length;
+
+  /// Whether this collection is empty.
+  bool get isEmpty => _map.isEmpty;
+
+  /// Whether there is at least one value in this collection.
+  bool get isNotEmpty => _map.isNotEmpty;
+
+  /// The keys of these [ContentValues].
+  Iterable<String> get keys => _map.keys;
+
+  /// The values of these [ContentValues].
+  Iterable<Object?> get values {
+    return _map.values.map((Object? value) => _maybeUnwrapValue(value));
+  }
+
+  /// The entries of these [ContentValues].
+  Iterable<MapEntry<String, Object?>> get entries {
+    return keys.map((String key) =>
+        MapEntry<String, Object?>(key, _maybeUnwrapValue(_map[key])));
+  }
+
+  // Unwraps the values and returns a primitive.
+  Object? _maybeUnwrapValue(Object? value) {
+    if (value is _Byte) {
+      value = value.value;
+    } else if (value is _Short) {
+      value = value.value;
+    } else if (value is _Long) {
+      value = value.value;
+    } else if (value is _Float) {
+      value = value.value;
+    }
+    return value;
   }
 
   /// Returns true if this object has a value by given [key].
   bool containsKey(String key) {
-    return values.containsKey(key);
+    return _map.containsKey(key);
+  }
+
+  /// Removes [key] and its associated value, if present, from the map.
+  ///
+  /// Returns the value associated with [key] before it was removed.
+  Object? remove(String key) {
+    return _map.remove(key);
+  }
+
+  /// Removes all values.
+  void clear() {
+    _map.clear();
+  }
+
+  /// Adds the string [value] to the set by the given [key].
+  void putString(String key, String? value) {
+    _map[key] = value;
+  }
+
+  /// Adds the byte [value] to the set by the given [key].
+  void putByte(String key, int? value) {
+    _map[key] = value == null ? null : _Byte(value);
+  }
+
+  /// Adds the short [value] to the set by the given [key].
+  void putShort(String key, int? value) {
+    _map[key] = value == null ? null : _Short(value);
+  }
+
+  /// Adds the integer [value] to the set by the given [key].
+  void putInt(String key, int? value) {
+    _map[key] = value;
+  }
+
+  /// Adds the long [value] to the set by the given [key].
+  void putLong(String key, int? value) {
+    _map[key] = value == null ? null : _Long(value);
+  }
+
+  /// Adds the float [value] to the set by the given [key].
+  void putFloat(String key, double? value) {
+    _map[key] = value == null ? null : _Float(value);
+  }
+
+  /// Adds the double [value] to the set by the given [key].
+  void putDouble(String key, double? value) {
+    _map[key] = value;
+  }
+
+  /// Adds the bool [value] to the set by the given [key].
+  void putBool(String key, bool? value) {
+    _map[key] = value;
+  }
+
+  /// Adds the byte array [value] to the set by the given [key].
+  void putBytes(String key, Uint8List? value) {
+    _map[key] = value;
+  }
+
+  /// Adds a null value to the set by the given [key].
+  void putNull(String key) {
+    _map[key] = null;
+  }
+
+  /// Gets a value by the given [key].
+  Object? getObject(String key) {
+    return _maybeUnwrapValue(_map[key]);
+  }
+
+  /// Gets a string value by the given [key].
+  String? getString(String key) {
+    return _maybeUnwrapValue(_map[key]) as String?;
+  }
+
+  /// Gets an int value by the given [key].
+  ///
+  /// Java's integer number type can be used with this method:
+  ///  * Byte
+  ///  * Short
+  ///  * Integer
+  ///  * Long
+  int? getInt(String key) {
+    return _maybeUnwrapValue(_map[key]) as int?;
+  }
+
+  /// Gets a double value by the given [key].
+  ///
+  /// Java's floating number type can be used with this method:
+  ///  * Float
+  ///  * Double
+  double? getDouble(String key) {
+    return _maybeUnwrapValue(_map[key]) as double?;
+  }
+
+  /// Gets a bool value by the given [key].
+  bool? getBool(String key) {
+    return _maybeUnwrapValue(_map[key]) as bool?;
+  }
+
+  /// Gets a byte array value by the given [key].
+  Uint8List? getBytes(String key) {
+    return _maybeUnwrapValue(_map[key]) as Uint8List?;
+  }
+}
+
+/// A wrapper for value in [CotnentValues.putByte].
+class _Byte {
+  const _Byte(this.value);
+  final int value;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _Byte && other.value == value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+/// A wrapper for value in [CotnentValues.putShort].
+class _Short {
+  const _Short(this.value);
+  final int value;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _Short && other.value == value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+//
+// [CotnentValues.putInt] - integers a stored just as `int`
+//
+
+/// A wrapper for value in [CotnentValues.putLong].
+class _Long {
+  const _Long(this.value);
+  final int value;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _Long && other.value == value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+/// A wrapper for value in [CotnentValues.putFloat].
+class _Float {
+  const _Float(this.value);
+  final double value;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _Float && other.value == value;
+  }
+
+  @override
+  int get hashCode => value.hashCode;
+}
+
+//
+// [CotnentValues.putDouble] - doubles a stored just as `double`
+//
+
+/// The codec utilized to encode data back and forth between
+/// the Dart application and the native platform.
+class AndroidContentProviderMessageCodec extends StandardMessageCodec {
+  /// Creates the codec.
+  const AndroidContentProviderMessageCodec();
+
+  // Java types that need to be supported
+  static const int _kByte = 128;
+  static const int _kShort = 129;
+  // value copied from the [StandardMessageCodec._valueInt32]
+  static const int _kInteger = 3;
+  // value copied from the [StandardMessageCodec._valueInt64]
+  static const int _kLong = 4;
+  static const int _kFloat = 131;
+  // value copied from the [StandardMessageCodec._valueFloat64]
+  static const int _kDouble = 6;
+
+  @override
+  void writeValue(WriteBuffer buffer, dynamic value) {
+    if (value is _Byte) {
+      buffer.putUint8(_kByte);
+      buffer.putInt32(value.value);
+    } else if (value is _Short) {
+      buffer.putUint8(_kShort);
+      buffer.putInt32(value.value);
+    } else if (value is int) {
+      buffer.putUint8(_kInteger);
+      buffer.putInt32(value);
+    } else if (value is _Long) {
+      buffer.putUint8(_kLong);
+      buffer.putInt64(value.value);
+    } else if (value is _Float) {
+      buffer.putUint8(_kFloat);
+      buffer.putFloat64(value.value);
+    } else if (value is double) {
+      buffer.putUint8(_kDouble);
+      buffer.putFloat64(value);
+    } else {
+      super.writeValue(buffer, value);
+    }
+  }
+
+  @override
+  Object? readValueOfType(int type, ReadBuffer buffer) {
+    switch (type) {
+      case _kByte:
+      case _kShort:
+      case _kInteger:
+        return buffer.getInt32();
+      case _kLong:
+        return buffer.getInt64();
+      case _kFloat:
+      case _kDouble:
+        return buffer.getFloat64();
+      default:
+        return super.readValueOfType(type, buffer);
+    }
   }
 }
 
@@ -277,7 +594,7 @@ abstract class AndroidContentProvider {
   Future<CallingIdentity> clearCallingIdentity() async {
     final result = await _methodChannel
         .invokeMapMethod<String, dynamic>('clearCallingIdentity');
-    return CallingIdentity._fromMap(result!);
+    return CallingIdentity.fromMap(result!);
   }
 
   /// delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int
