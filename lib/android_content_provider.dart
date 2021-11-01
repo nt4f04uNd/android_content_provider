@@ -62,41 +62,6 @@ class _Native {
 /// https://developer.android.com/reference/android/os/Bundle.
 typedef BundleMap = Map<String, dynamic>;
 
-/// Container for two values.
-class Pair<T, K> {
-  /// Creates a pair of two values.
-  const Pair(this.first, this.second);
-
-  /// First value.
-  final T first;
-
-  /// Second value.
-  final K second;
-
-  @override
-  bool operator ==(Object other) {
-    return other is Pair && other.first == first && other.second == second;
-  }
-
-  @override
-  int get hashCode => hashValues(first, second);
-
-  @override
-  String toString() {
-    return '${objectRuntimeType(this, 'Pair')}($first, $second)';
-  }
-
-  /// Creates a pair from list.
-  @visibleForTesting
-  Pair.fromList(List<Object?> list)
-      : first = list[0] as T,
-        second = list[1] as K;
-
-  /// Converts the pair to list.
-  @visibleForTesting
-  List<Object> toList() => [first as Object, second as Object];
-}
-
 /// Opaque token representing the identity of an incoming IPC.
 class CallingIdentity {
   const CallingIdentity._(this.id);

@@ -4,26 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:android_content_provider/android_content_provider.dart';
 
 void main() {
-  group('Pair', () {
-    test('constructor and properties', () {
-      const pair = Pair(1, 2);
-      expect(pair.first, 1);
-      expect(pair.second, 2);
-    });
-
-    test('toString', () {
-      const pair = Pair(1, 2);
-      expect(pair.toString(), 'Pair(1, 2)');
-    });
-
-    test('serialization and equality', () {
-      const createPair = Pair<int, int>.fromList;
-      final pair = createPair([1, 2]);
-      expect(pair, createPair([1, 2]));
-      expect(pair, isNot(createPair([2, 2])));
-    });
-  });
-
   group('CallingIdentity', () {
     test('toString', () {
       final identity = CallingIdentity.fromMap(<String, Object?>{'id': 0});
