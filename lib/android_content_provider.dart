@@ -5,6 +5,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:uuid/uuid.dart';
+
+const _uuid = Uuid();
+const _channelPrefix = 'com.nt4f04und.android_content_provider';
 
 /// The android_content_provider plugin binding.
 ///
@@ -12,7 +16,7 @@ import 'package:rxdart/rxdart.dart';
 abstract class AndroidContentProviderPlugin {
   static late final MethodChannel _channel = () {
     WidgetsFlutterBinding.ensureInitialized();
-    return const MethodChannel('com.nt4f04und.android_content_provider.methods')
+    return const MethodChannel('$_channelPrefix.methods')
       ..setMethodCallHandler(_handleMethodCall);
   }();
 
@@ -60,7 +64,7 @@ class _Native {
 
 /// Map type alias that is used in place of Android Bundle
 /// https://developer.android.com/reference/android/os/Bundle.
-typedef BundleMap = Map<String, dynamic>;
+typedef BundleMap = Map<String, Object?>;
 
 /// Opaque token representing the identity of an incoming IPC.
 class CallingIdentity {
@@ -89,7 +93,7 @@ class CallingIdentity {
 
   /// Converts the identity to map.
   @visibleForTesting
-  BundleMap toMap() => <String, dynamic>{'id': id};
+  BundleMap toMap() => {'id': id};
 }
 
 /// Description of permissions needed to access a particular path in a content provider
@@ -136,7 +140,7 @@ class PathPermission {
 
   /// Converts the path permissions to map.
   @visibleForTesting
-  BundleMap toMap() => <String, dynamic>{
+  BundleMap toMap() => {
         'readPermission': readPermission,
         'writePermission': writePermission,
       };
@@ -411,7 +415,7 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   static const int _kDouble = 6;
 
   @override
-  void writeValue(WriteBuffer buffer, dynamic value) {
+  void writeValue(WriteBuffer buffer, Object? value) {
     if (value is _Byte) {
       buffer.putUint8(_kByte);
       buffer.putInt32(value.value);
@@ -453,6 +457,246 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   }
 }
 
+/// The cursor that calls in to platform Cursor
+/// https://developer.android.com/reference/android/database/Cursor
+///
+/// The operations are packed into [NativeCursorBatch] to achieve the best performance
+/// by reducing Flutter channel bottle-necking. Cursor operations can often be
+/// represented as batches, such as reading all values from each row.
+///
+/// Returned from [AndroidContentResolver.query].
+///
+/// See also:
+///  * [MatrixCursorData], which is a class, returned from [AndroidContentProvider.query].
+class NativeCursor {
+  final _id = _uuid.v4();
+  late final _methodChannel = MethodChannel('$_channelPrefix/Cursor/$_id');
+
+  /// Creates a batch operation.
+  NativeCursorBatch createBatch() {
+    return NativeCursorBatch();
+  }
+}
+
+/// Cursor operations are can often be represented as batches, such as
+/// reading all values from each row. This representation allows
+/// to reduce Flutter channel bottle-necking.
+///
+/// Used in [NativeCursor].
+class NativeCursorBatch {
+  final List<Object?> _operations = [];
+  List<Object?> get operations => List.unmodifiable(_operations);
+
+  /// Converts the cursor to map to send it to platform.
+  BundleMap toMap() => {
+        'operations': _operations,
+      };
+}
+
+/// Builds and contains a data of a platform Cursor
+/// https://developer.android.com/reference/android/database/Cursor
+///
+/// This class then will be converted with [toMap] and sent to the platform,
+/// which should have an Cursor implementation which can use the data of this class
+/// and return this native Cursor from content provider.
+///
+/// Returned from [AndroidContentProvider.query].
+abstract class CursorData {
+  /// Creates cursor data.
+  CursorData({
+    required this.notificationUris,
+  });
+
+  /// Actual payload data.
+  Object? get payload;
+
+  /// A map with extra values.
+  final List<Uri>? notificationUris;
+
+  /// A map with extra values.
+  BundleMap? extras;
+
+  /// Converts the cursor to map to send it to platform.
+  @visibleForTesting
+  BundleMap toMap() => {
+        'payload': payload,
+        'notificationUris': notificationUris,
+        'extras': extras,
+      };
+}
+
+/// A data for Android's MatrixCursor, a mutable cursor implementation backed by an array of [Object]s
+/// https://developer.android.com/reference/android/database/MatrixCursor
+class MatrixCursorData extends CursorData {
+  /// Creates the matrix cursor data.
+  MatrixCursorData({
+    required List<String> columnNames,
+    required List<Uri>? notificationUris,
+  })  : _columnNames = List.unmodifiable(columnNames),
+        super(notificationUris: notificationUris);
+
+  /// All column names, given on cursor data creation.
+  List<String> get columnNames => List.unmodifiable(_columnNames);
+  final List<String> _columnNames;
+  final List<Object?> _data = [];
+  int _rowCount = 0;
+
+  int get _columnCount => columnNames.length;
+
+  @override
+  Object? get payload => {
+        'columnNames': _columnNames,
+        'data': _data,
+        'rowCount': _rowCount,
+      };
+
+  /// Ensures that this cursor has enough capacity.
+  void _ensureCapacity(int size) {
+    if (size > _data.length) {
+      int newSize = _data.length * 2;
+      if (newSize < size) {
+        newSize = size;
+      }
+      _data.addAll(List.generate(newSize - _data.length, (index) => null));
+    }
+  }
+
+  /// Adds a new row to the end and returns a builder for that row.
+  MatrixCursorDataRowBuilder newRow() {
+    final int row = _rowCount;
+    _rowCount += 1;
+    final int endIndex = _rowCount * _columnCount;
+    _ensureCapacity(endIndex);
+    return MatrixCursorDataRowBuilder._(row, this);
+  }
+
+  /// Adds a new row to the end with the given [columnValues].
+  ///
+  /// The [columnValues] must have the same length as [columnNames] and have the
+  /// same order.
+  void addRow(List<Object?> columnValues) {
+    if (columnValues.length != _columnCount) {
+      throw ArgumentError(
+        "The `columnValues` parameter must have the same length as `columnNames`. "
+        "The lengths were: columnValues = ${columnValues.length}, columnNames = ${_columnNames.length}",
+      );
+    }
+
+    int start = _rowCount * _columnCount;
+    _rowCount += 1;
+    _ensureCapacity(start + _columnCount);
+    _data.setRange(start, _columnCount, columnValues);
+  }
+}
+
+/// Android's MatrixCursor.RowBuilder
+/// https://developer.android.com/reference/android/database/MatrixCursor.RowBuilder
+///
+/// Undefined values are left as null.
+class MatrixCursorDataRowBuilder {
+  MatrixCursorDataRowBuilder._(int row, this._cursorData)
+      : _index = row * _cursorData._columnCount {
+    _endIndex = _index + _cursorData._columnCount;
+  }
+
+  final MatrixCursorData _cursorData;
+  late final int _endIndex;
+
+  int _index;
+
+  /// Sets the next column value in this row.
+  ///
+  /// Returns this builder to support chaining.
+  ///
+  /// Throws [CursorRangeError] if you try to add too many values
+  MatrixCursorDataRowBuilder add(Object columnValue) {
+    if (_index == _endIndex) {
+      throw CursorRangeError("No more columns left.");
+    }
+
+    _cursorData._data[_index] = columnValue;
+    _index += 1;
+    return this;
+  }
+}
+
+/// An error indicating that a cursor is out of bounds.
+///
+/// A counterpart of CursorIndexOutOfBoundsException
+/// https://developer.android.com/reference/android/database/CursorIndexOutOfBoundsException
+class CursorRangeError extends RangeError {
+  /// Crerates cursor range error.
+  CursorRangeError(String message) : super(message);
+}
+
+/// Provides the ability to cancel an operation in progress
+/// https://developer.android.com/reference/android/os/CancellationSignal
+class CancellationSignal {
+  /// Creates cancellation signal.
+  CancellationSignal() : this.fromId(_uuid.v4());
+
+  /// Creates cancellation signal from existing ID.
+  CancellationSignal.fromId(this._id) {
+    _methodChannel = MethodChannel('$_channelPrefix/CancellationSignal/$_id')
+      ..setMethodCallHandler(_handleMethodCall);
+  }
+
+  final String _id;
+  late final MethodChannel _methodChannel;
+
+  /// Whether the operation is cancalled.
+  bool get cancelled => _cancelled;
+  bool _cancelled = false;
+
+  VoidCallback? _cancelListener;
+
+  /// Sets the cancellation [listener] to be called when canceled.
+  ///
+  /// If already cancelled, the listener will be called immediately
+  void setCancelListener(VoidCallback? listener) {
+    if (listener == _cancelListener) {
+      return;
+    }
+    _cancelListener = listener;
+    if (_cancelled) {
+      listener?.call();
+    }
+  }
+
+  /// Cancels the operation and signals the cancellation listener.
+  /// If the operation has not yet started, then it will be canceled as soon as it does.
+  Future<void> cancel() async {
+    if (_cancelled) {
+      return;
+    }
+    try {
+      _cancelled = true;
+      _cancelListener?.call();
+      _methodChannel.setMethodCallHandler(null);
+      await _methodChannel.invokeMethod<void>('create', {'id': _id});
+    } catch (ex) {
+      // Swallow exceptions in case the channel has not been initialized yet.
+    }
+  }
+
+  Future<dynamic> _handleMethodCall(MethodCall call) async {
+    if (_cancelled) {
+      return;
+    }
+    switch (call.method) {
+      case 'cancel':
+        _cancelled = true;
+        _cancelListener?.call();
+        _methodChannel.setMethodCallHandler(null);
+        break;
+      default:
+        throw PlatformException(
+            code: 'unimplemented',
+            message: 'Method not implemented: ${call.method}');
+    }
+  }
+}
+
 /// A communication interface with native Android ContentProvider.
 ///
 /// The most of methods the native platform calls to dart and they can be overridden
@@ -477,7 +721,7 @@ abstract class AndroidContentProvider {
 
   Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
     final BundleMap? args =
-        (methodCall.arguments as Map?)?.cast<String, dynamic>();
+        (methodCall.arguments as Map?)?.cast<String, Object?>();
     switch (methodCall.method) {
       case 'call':
         return call(
@@ -512,7 +756,7 @@ abstract class AndroidContentProvider {
   // bulkInsert(Uri uri, ContentValues[] values)
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#bulkinsert
   //
-  // TODO:
+  // TODO: Batch operations are not implemented yet
   //
   //
 
@@ -558,7 +802,7 @@ abstract class AndroidContentProvider {
   @native
   Future<CallingIdentity> clearCallingIdentity() async {
     final result = await _methodChannel
-        .invokeMapMethod<String, dynamic>('clearCallingIdentity');
+        .invokeMapMethod<String, Object?>('clearCallingIdentity');
     return CallingIdentity.fromMap(result!);
   }
 
@@ -645,9 +889,8 @@ abstract class AndroidContentProvider {
       Uri uri, ContentValues? values, BundleMap? extras);
 
   /// onCallingPackageChanged(): Unit
-  /// [WidgetsBindingObserver]
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#oncallingpackagechanged
-  Future<void> onCallingPackageChanged();
+  Future<void> onCallingPackageChanged() async {}
 
   // onConfigurationChanged(newConfig: Configuration): Unit
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#onconfigurationchanged
@@ -684,17 +927,19 @@ abstract class AndroidContentProvider {
   //
   // @native, not exposed.
   //
+  //
 
   /// openFile(uri: Uri, mode: String): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile
   Future<Uri> openFile(Uri uri, String mode);
 
-  // openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile_1
-  //
-  // @native, not exposed.
-  //
-  //
+  /// openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile_1
+  Future<Uri> openFileWithSignal(
+    Uri uri,
+    String mode,
+    CancellationSignal cancellationSignal,
+  );
 
   // openPipeHelper(uri: Uri, mimeType: String, opts: Bundle?, args: T?, func: ContentProvider.PipeDataWriter<T>): ParcelFileDescriptor
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openpipehelper
@@ -720,37 +965,80 @@ abstract class AndroidContentProvider {
   //
   //
 
-  // query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#query
+  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query
+  Future<CursorData> query(
+    Uri uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+  );
 
-  // query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_1
+  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_1
+  Future<CursorData> queryWithSignal(
+    Uri uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+    CancellationSignal? cancellationSignal,
+  );
 
-  // query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
+  /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
+  Future<CursorData> queryWithBundle(
+    Uri uri,
+    List<String>? projection,
+    BundleMap? queryArgs,
+    CancellationSignal? cancellationSignal,
+  );
 
-  // refresh(uri: Uri!, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#refresh
+  /// refresh(uri: Uri!, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#refresh
+  Future<bool> refresh(
+    Uri uri,
+    BundleMap? extras,
+    CancellationSignal? cancellationSignal,
+  );
 
   // requireContext(): Context
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#requirecontext
+  //
+  // The `getContext` is not exposed.
+  //
+  // Also, the plugin is initialized in `onCreate`, i.e. this would be possible to be called only
+  // when the context is already available.
+  //
+  //
 
   /// restoreCallingIdentity(identity: ContentProvider.CallingIdentity): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#restorecallingidentity
   @native
   Future<void> restoreCallingIdentity(CallingIdentity identity);
 
-  // shutdown(): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#shutdown
+  /// shutdown(): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#shutdown
+  Future<void> shutdown();
 
-  // uncanonicalize(url: Uri): Uri?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#uncanonicalize
+  /// uncanonicalize(url: Uri): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#uncanonicalize
+  Future<Uri?> uncanonicalize(Uri url);
 
-  // update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String!>?): Int
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#update
+  /// update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String!>?): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update
+  Future<int> update(
+    Uri uri,
+    ContentValues? values,
+    String? selection,
+    List<String>? selectionArgs,
+  );
 
-  // update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#update_1
+  /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update_1
+  Future<int> updateWithExtras(
+      Uri uri, ContentValues? values, BundleMap? extras);
 }
 
 class AndroidContentResolver {}
