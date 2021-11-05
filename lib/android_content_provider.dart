@@ -699,12 +699,11 @@ class CancellationSignal {
 
 /// A communication interface with native Android ContentProvider.
 ///
-/// The most of methods the native platform calls to dart and they can be overridden
+/// The most of methods are called by the native platform to dart. They can be overridden
 /// to implement some behavior.
 ///
-/// However, some methods that are marked with [native] annotation are meant
-/// to be called from dart to native. These methods the platform will never call
-/// in dart.
+/// Vice verca, some methods that are marked with [native] annotation are meant
+/// to be called from dart to native. These methods will never be called from native.
 abstract class AndroidContentProvider {
   /// Creates a communication interface with native Android ContentProvider.
   AndroidContentProvider(this.authority)
@@ -1041,4 +1040,383 @@ abstract class AndroidContentProvider {
       Uri uri, ContentValues? values, BundleMap? extras);
 }
 
-class AndroidContentResolver {}
+// TODO: implement
+class SyncInfo {}
+
+// TODO: implement
+class UriPermission {}
+
+// TODO: implement
+class SyncAdapterType {}
+
+// TODO: implement
+class MimeTypeInfo {}
+
+// TODO: implement
+class ContentObserver {}
+
+abstract class AndroidContentResolver {
+  // acquireContentProviderClient(uri: Uri): ContentProviderClient?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquirecontentproviderclient
+  //
+  // acquireContentProviderClient(name: String): ContentProviderClient?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquirecontentproviderclient_1
+  //
+  // acquireUnstableContentProviderClient(uri: Uri): ContentProviderClient?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquireunstablecontentproviderclient
+  //
+  // acquireUnstableContentProviderClient(name: String): ContentProviderClient?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquireunstablecontentproviderclient_1
+  //
+  //
+  // TODO: implement clients
+  //
+  //
+
+  // static addPeriodicSync(account: Account!, authority: String!, extras: Bundle!, pollFrequency: Long): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#addperiodicsync
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  // static addStatusChangeListener(mask: Int, callback: SyncStatusObserver!): Any!
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#addstatuschangelistener
+  //
+  // TODO: implement
+  //
+  //
+
+  // applyBatch(authority: String, operations: ArrayList<ContentProviderOperation!>): Array<ContentProviderResult!>
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#applybatch
+  //
+  // TODO: implement batches
+  //
+  //
+
+  /// bulkInsert(url: Uri, values: Array<ContentValues!>): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#bulkinsert
+  Future<int> bulkInsert(Uri uri, List<ContentValues> values);
+
+  /// call(uri: Uri, method: String, arg: String?, extras: Bundle?): Bundle?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call
+  Future<BundleMap?> call(String method, String? arg, BundleMap? extras);
+
+  /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call_1
+  Future<BundleMap?> callWithAuthority(
+      String authority, String method, String? arg, BundleMap? extras);
+
+  // cancelSync(uri: Uri!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#cancelsync
+  //
+  // Deprecated
+  //
+  //
+
+  // static cancelSync(account: Account!, authority: String!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#cancelsync_1
+  //
+  // static cancelSync(request: SyncRequest!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#cancelsync_2
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  /// canonicalize(url: Uri): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#canonicalize
+  Future<Uri?> canonicalize(Uri url);
+
+  /// delete(url: Uri, where: String?, selectionArgs: Array<String!>?): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete
+  Future<int> delete(Uri uri, String? selection, List<String>? selectionArgs);
+
+  /// delete(url: Uri, extras: Bundle?): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete_1
+  Future<int> deleteWithExtras(Uri uri, BundleMap? extras);
+
+  // static getCurrentSync(): SyncInfo!
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getcurrentsync
+  //
+  // Deprecated
+  //
+  //
+
+  /// static getCurrentSyncs(): MutableList<SyncInfo!>!
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getcurrentsyncs
+  static Future<List<SyncInfo>> getCurrentSyncs();
+
+  // static getIsSyncable(account: Account!, authority: String!): Int
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getissyncable
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  /// static getMasterSyncAutomatically(): Boolean
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getmastersyncautomatically
+  static Future<bool> getMasterSyncAutomatically();
+
+  /// getOutgoingPersistedUriPermissions(): MutableList<UriPermission!>
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getoutgoingpersisteduripermissions
+  Future<List<UriPermission>> getOutgoingPersistedUriPermissions();
+
+  // static getPeriodicSyncs(account: Account!, authority: String!): MutableList<PeriodicSync!>!
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getperiodicsyncs
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  /// getPersistedUriPermissions(): MutableList<UriPermission!>
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getpersisteduripermissions
+  Future<List<UriPermission>> getPersistedUriPermissions();
+
+  /// getStreamTypes(url: Uri, mimeTypeFilter: String): Array<String!>?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getstreamtypes
+  Future<List<String>?> getStreamTypes(Uri uri, String mimeTypeFilter);
+
+  /// static getSyncAdapterTypes(): Array<SyncAdapterType!>!
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getsyncadaptertypes
+  static Future<List<SyncAdapterType>> getSyncAdapterTypes();
+
+  // static getSyncAutomatically(account: Account!, authority: String!): Boolean
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getsyncautomatically
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  /// getType(url: Uri): String?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettype
+  Future<String?> getType(Uri uri);
+
+  /// getTypeInfo(mimeType: String): ContentResolver.MimeTypeInfo
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettypeinfo
+  Future<MimeTypeInfo> getTypeInfo(String mimeType);
+
+  /// insert(url: Uri, values: ContentValues?): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert
+  Future<Uri?> insert(Uri uri, ContentValues? values);
+
+  /// insert(url: Uri, values: ContentValues?, extras: Bundle?): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert_1
+  Future<Uri?> insertWithExtras(
+      Uri uri, ContentValues? values, BundleMap? extras);
+
+  // static isSyncActive(account: Account!, authority: String!): Boolean
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#issyncactive
+  //
+  // static isSyncPending(account: Account!, authority: String!): Boolean
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#issyncpending
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
+  Future<Uint8List> loadThumbnail(
+      Uri uri, Size size, CancellationSignal? cancellationSignal);
+
+  /// notifyChange(uri: Uri, observer: ContentObserver?): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange
+  Future<void> notifyChange(Uri uri, ContentObserver? observer);
+
+  // notifyChange(uri: Uri, observer: ContentObserver?, syncToNetwork: Boolean): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_1
+  //
+  // Deprecated
+  //
+  //
+
+  /// notifyChange(uri: Uri, observer: ContentObserver?, flags: Int): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_2
+  Future<void> notifyChangeWithFlags(
+    Uri uri,
+    ContentObserver? observer,
+    int flags,
+  );
+
+  /// notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_3
+  Future<void> notifyChangeWithList(
+    List<Uri> uri,
+    ContentObserver? observer,
+    int flags,
+  );
+
+  // openAssetFile(uri: Uri, mode: String, signal: CancellationSignal?): AssetFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openassetfile
+  //
+  // openAssetFileDescriptor(uri: Uri, mode: String): AssetFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openassetfiledescriptor
+  //
+  // openAssetFileDescriptor(uri: Uri, mode: String, cancellationSignal: CancellationSignal?): AssetFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openassetfiledescriptor_1
+  //
+  // openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openfile
+  //
+  // openFileDescriptor(uri: Uri, mode: String): ParcelFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openfiledescriptor
+  //
+  // openFileDescriptor(uri: Uri, mode: String, cancellationSignal: CancellationSignal?): ParcelFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openfiledescriptor_1
+  //
+  // openInputStream(uri: Uri): InputStream?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openinputstream
+  //
+  // openOutputStream(uri: Uri): OutputStream?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openoutputstream
+  //
+  // openOutputStream(uri: Uri, mode: String): OutputStream?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openoutputstream_1
+  //
+  // openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?, signal: CancellationSignal?): AssetFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#opentypedassetfile
+  //
+  // openTypedAssetFileDescriptor(uri: Uri, mimeType: String, opts: Bundle?): AssetFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#opentypedassetfiledescriptor
+  //
+  // openTypedAssetFileDescriptor(uri: Uri, mimeType: String, opts: Bundle?, cancellationSignal: CancellationSignal?): AssetFileDescriptor?
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#opentypedassetfiledescriptor_1
+  //
+  // TODO: implement
+  //
+  //
+
+  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query
+  Future<CursorData> query(
+    Uri uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+  );
+
+  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_1
+  Future<CursorData> queryWithSignal(
+    Uri uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+    CancellationSignal? cancellationSignal,
+  );
+
+  /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_2
+  Future<CursorData> queryWithBundle(
+    Uri uri,
+    List<String>? projection,
+    BundleMap? queryArgs,
+    CancellationSignal? cancellationSignal,
+  );
+
+  /// refresh(url: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#refresh
+  Future<bool> refresh(
+    Uri uri,
+    BundleMap? extras,
+    CancellationSignal? cancellationSignal,
+  );
+
+  /// registerContentObserver(uri: Uri, notifyForDescendants: Boolean, observer: ContentObserver): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#registercontentobserver
+  Future<void> registerContentObserver(
+      Uri uri, bool notifyForDescendants, ContentObserver observer);
+
+  /// releasePersistableUriPermission(uri: Uri, modeFlags: Int): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#releasepersistableuripermission
+  Future<void> releasePersistableUriPermission(Uri uri, int modeFlags);
+
+  // static removePeriodicSync(account: Account!, authority: String!, extras: Bundle!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#removeperiodicsync
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  // static removeStatusChangeListener(handle: Any!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#removestatuschangelistener
+  //
+  // TODO: implement
+  //
+  //
+
+  // static requestSync(account: Account!, authority: String!, extras: Bundle!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#requestsync
+  //
+  // static requestSync(request: SyncRequest!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#requestsync_1
+  //
+  // static setIsSyncable(account: Account!, authority: String!, syncable: Int): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#setissyncable
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  /// static setMasterSyncAutomatically(sync: Boolean): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#setmastersyncautomatically
+  static Future<void> setMasterSyncAutomatically(bool value);
+
+  // static setSyncAutomatically(account: Account!, authority: String!, sync: Boolean): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#setsyncautomatically
+  //
+  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
+  //
+  //
+
+  // startSync(uri: Uri!, extras: Bundle!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#startsync
+  //
+  // Deprecated
+  //
+  //
+
+  /// takePersistableUriPermission(uri: Uri, modeFlags: Int): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#takepersistableuripermission
+  Future<void> takePersistableUriPermission(Uri uri, int modeFlags);
+
+  /// uncanonicalize(url: Uri): Uri?
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#uncanonicalize
+  Future<Uri?> uncanonicalize(Uri url);
+
+  /// unregisterContentObserver(observer: ContentObserver): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#unregistercontentobserver
+  Future<void> unregisterContentObserver(ContentObserver observer);
+
+  /// update(uri: Uri, values: ContentValues?, where: String?, selectionArgs: Array<String!>?): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update
+  Future<int> update(
+    Uri uri,
+    ContentValues? values,
+    String? selection,
+    List<String>? selectionArgs,
+  );
+
+  /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update_1
+  Future<int> updateWithExtras(
+      Uri uri, ContentValues? values, BundleMap? extras);
+
+  /// static validateSyncExtrasBundle(extras: Bundle!): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#validatesyncextrasbundle
+  static Future<void> validateSyncExtrasBundle(BundleMap extras);
+
+  /// static wrap(wrapped: ContentProvider): ContentResolver
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#wrap
+  static AndroidContentResolver wrap(AndroidContentProvider wrapped);
+
+  // static wrap(wrapped: ContentProviderClient): ContentResolver
+  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#wrap_1
+  //
+  // TODO: implement clients
+  //
+  //
+}
