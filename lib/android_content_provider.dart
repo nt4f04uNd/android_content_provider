@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:uuid/uuid.dart';
+import 'package:meta/meta.dart';
 
 const _uuid = Uuid();
 const _channelPrefix = 'com.nt4f04und.android_content_provider';
@@ -16,7 +18,7 @@ const _channelPrefix = 'com.nt4f04und.android_content_provider';
 abstract class AndroidContentProviderPlugin {
   static late final MethodChannel _channel = () {
     WidgetsFlutterBinding.ensureInitialized();
-    return const MethodChannel('$_channelPrefix.methods')
+    return const MethodChannel('$_channelPrefix/plugin')
       ..setMethodCallHandler(_handleMethodCall);
   }();
 
@@ -87,13 +89,11 @@ class CallingIdentity {
   }
 
   /// Creates an identity from map.
-  @visibleForTesting
   factory CallingIdentity.fromMap(BundleMap map) =>
       CallingIdentity._(map['id'] as int);
 
   /// Converts the identity to map.
-  @visibleForTesting
-  BundleMap toMap() => {'id': id};
+  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{'id': id});
 }
 
 /// Description of permissions needed to access a particular path in a content provider
@@ -132,18 +132,16 @@ class PathPermission {
   }
 
   /// Creates path permissions from map.
-  @visibleForTesting
   factory PathPermission.fromMap(BundleMap map) => PathPermission(
         readPermission: map['readPermission'] as String?,
         writePermission: map['writePermission'] as String?,
       );
 
   /// Converts the path permissions to map.
-  @visibleForTesting
-  BundleMap toMap() => {
+  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{
         'readPermission': readPermission,
         'writePermission': writePermission,
-      };
+      });
 }
 
 /// This class is used to store a set of values that the content provider/resolver can process
@@ -151,10 +149,15 @@ class PathPermission {
 class ContentValues {
   /// Creates [ContentValues].
   ContentValues() : _map = <String, Object?>{};
-  ContentValues._(Map<String, Object?> map) : _map = map;
 
   /// Copies values from other [ContentValues] instances.
   ContentValues.copyFrom(ContentValues other) : _map = other._map;
+
+  /// Creates values from map.
+  ContentValues.fromMap(Map<String, Object?> map) : _map = BundleMap.from(map);
+
+  /// Converts the values to map.
+  BundleMap toMap() => BundleMap.unmodifiable(_map);
 
   /// Content values map.
   final Map<String, Object?> _map;
@@ -333,7 +336,7 @@ class ContentValues {
   }
 }
 
-/// A wrapper for value in [CotnentValues.putByte].
+/// A wrapper for value in [ContentValues.putByte].
 class _Byte {
   const _Byte(this.value);
   final int value;
@@ -347,7 +350,7 @@ class _Byte {
   int get hashCode => value.hashCode;
 }
 
-/// A wrapper for value in [CotnentValues.putShort].
+/// A wrapper for value in [ContentValues.putShort].
 class _Short {
   const _Short(this.value);
   final int value;
@@ -362,10 +365,10 @@ class _Short {
 }
 
 //
-// [CotnentValues.putInt] - integers a stored just as `int`
+// [ContentValues.putInt] - integers a stored just as `int`
 //
 
-/// A wrapper for value in [CotnentValues.putLong].
+/// A wrapper for value in [ContentValues.putLong].
 class _Long {
   const _Long(this.value);
   final int value;
@@ -379,7 +382,7 @@ class _Long {
   int get hashCode => value.hashCode;
 }
 
-/// A wrapper for value in [CotnentValues.putFloat].
+/// A wrapper for value in [ContentValues.putFloat].
 class _Float {
   const _Float(this.value);
   final double value;
@@ -394,7 +397,7 @@ class _Float {
 }
 
 //
-// [CotnentValues.putDouble] - doubles a stored just as `double`
+// [ContentValues.putDouble] - doubles a stored just as `double`
 //
 
 /// The codec utilized to encode data back and forth between
@@ -468,9 +471,17 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 ///
 /// See also:
 ///  * [MatrixCursorData], which is a class, returned from [AndroidContentProvider.query].
-class NativeCursor {
-  final _id = _uuid.v4();
-  late final _methodChannel = MethodChannel('$_channelPrefix/Cursor/$_id');
+class NativeCursor extends PlatformObjectRegistryEntry {
+  /// Creates native cursor.
+  NativeCursor() : this.fromId(_uuid.v4());
+
+  /// Creates native cursor from an existing ID.
+  @internal
+  NativeCursor.fromId(String id)
+      : _methodChannel = MethodChannel('$_channelPrefix/Cursor/$id'),
+        super.fromId(id);
+
+  final MethodChannel _methodChannel;
 
   /// Creates a batch operation.
   NativeCursorBatch createBatch() {
@@ -488,9 +499,9 @@ class NativeCursorBatch {
   List<Object?> get operations => List.unmodifiable(_operations);
 
   /// Converts the cursor to map to send it to platform.
-  BundleMap toMap() => {
+  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{
         'operations': _operations,
-      };
+      });
 }
 
 /// Builds and contains a data of a platform Cursor
@@ -517,12 +528,11 @@ abstract class CursorData {
   BundleMap? extras;
 
   /// Converts the cursor to map to send it to platform.
-  @visibleForTesting
-  BundleMap toMap() => {
+  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{
         'payload': payload,
         'notificationUris': notificationUris,
         'extras': extras,
-      };
+      });
 }
 
 /// A data for Android's MatrixCursor, a mutable cursor implementation backed by an array of [Object]s
@@ -629,20 +639,47 @@ class CursorRangeError extends RangeError {
   CursorRangeError(String message) : super(message);
 }
 
+/// An entry in the platform object registry.
+///
+/// The platform registry object is a mechanism to keep track of native objects associated with
+/// their respective counterparts within dart.
+abstract class PlatformObjectRegistryEntry {
+  /// Creates an object with UUID v4 [id].
+  ///
+  /// Used to create an object and send it to the platform.
+  PlatformObjectRegistryEntry() : id = _uuid.v4();
+
+  /// Creates an object from an existing ID.
+  ///
+  /// Used when the platform has created an object and it needs a dart counterpart.
+  ///
+  /// Marked as internal because it's generally not what an API user should use.
+  /// However, it could be useful for custom implementations of [NativeCursor]
+  /// or [AndroidContentProvider] (i.e. those using `implements`).
+  @internal
+  const PlatformObjectRegistryEntry.fromId(this.id);
+
+  /// An ID of an object.
+  ///
+  /// Typically an UUID v4 string.
+  final String id;
+}
+
 /// Provides the ability to cancel an operation in progress
 /// https://developer.android.com/reference/android/os/CancellationSignal
-class CancellationSignal {
+class CancellationSignal extends PlatformObjectRegistryEntry {
   /// Creates cancellation signal.
   CancellationSignal() : this.fromId(_uuid.v4());
 
-  /// Creates cancellation signal from existing ID.
-  CancellationSignal.fromId(this._id) {
-    _methodChannel = MethodChannel('$_channelPrefix/CancellationSignal/$_id')
-      ..setMethodCallHandler(_handleMethodCall);
+  /// Creates cancellation signal from an existing ID.
+  @internal
+  CancellationSignal.fromId(String id)
+      : _methodChannel =
+            MethodChannel('$_channelPrefix/CancellationSignal/$id'),
+        super.fromId(id) {
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
-
-  final String _id;
-  late final MethodChannel _methodChannel;
+  final MethodChannel _methodChannel;
 
   /// Whether the operation is cancalled.
   bool get cancelled => _cancelled;
@@ -673,7 +710,7 @@ class CancellationSignal {
       _cancelled = true;
       _cancelListener?.call();
       _methodChannel.setMethodCallHandler(null);
-      await _methodChannel.invokeMethod<void>('create', {'id': _id});
+      await _methodChannel.invokeMethod<void>('create', {'id': id});
     } catch (ex) {
       // Swallow exceptions in case the channel has not been initialized yet.
     }
@@ -697,17 +734,28 @@ class CancellationSignal {
   }
 }
 
-/// A communication interface with native Android ContentProvider.
+/// A communication interface with native Android ContentProvider
+/// https://developer.android.com/reference/android/content/ContentProvider
 ///
-/// The most of methods are called by the native platform to dart. They can be overridden
+/// The native class is `AndroidContentProvider`.
+///
+/// Generally, you should use `extends` and NOT `implements` on this class, because it will remove
+/// a binding to the platofrm with a method channel.
+///
+/// However, `implements` could be used for:
+///  * using this class just as interface, or
+///  * for creating a custom native implementation by extending from `AndroidContentProvider`
+///
+/// The majority of the methods are called by the native platform to dart. They can be overridden
 /// to implement some behavior.
 ///
-/// Vice verca, some methods that are marked with [native] annotation are meant
-/// to be called from dart to native. These methods will never be called from native.
+/// But also, vice verca, some methods that are marked with [native] annotation are meant
+/// to be called from dart to native. These methods will never be called from native to dart.
 abstract class AndroidContentProvider {
   /// Creates a communication interface with native Android ContentProvider.
   AndroidContentProvider(this.authority)
-      : _methodChannel = MethodChannel(authority) {
+      : _methodChannel =
+            MethodChannel('$_channelPrefix/ContentProvider/$authority') {
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 
@@ -745,19 +793,16 @@ abstract class AndroidContentProvider {
   //
   //
 
-  // attachInfo(Context context, ProviderInfo info)
+  // attachInfo(context: Context!, info: ProviderInfo!): Unit
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#attachinfo
   //
-  // Not exposed.
+  // @native, not exposed.
   //
   //
 
-  // bulkInsert(Uri uri, ContentValues[] values)
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#bulkinsert
-  //
-  // TODO: Batch operations are not implemented yet
-  //
-  //
+  /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
+  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#bulkinsert
+  Future<int> bulkInsert(Uri uri, List<ContentValues> values);
 
   /// Call a provider-defined method.
   /// This can be used to implement interfaces that are cheaper and/or unnatural for a table-like model.
@@ -1040,22 +1085,195 @@ abstract class AndroidContentProvider {
       Uri uri, ContentValues? values, BundleMap? extras);
 }
 
-// TODO: implement
-class SyncInfo {}
+/// Detailed description of a specific MIME type, including an icon and label that describe the type
+/// https://developer.android.com/reference/android/content/ContentResolver.MimeTypeInfo
+class MimeTypeInfo {
+  /// Creates a detailed description of a specific MIME type.
+  const MimeTypeInfo({
+    required this.label,
+    required this.icon,
+    required this.contentDescription,
+  });
 
-// TODO: implement
-class UriPermission {}
+  /// A textual representation of this MIME type.
+  final String label;
 
-// TODO: implement
-class SyncAdapterType {}
+  /// A visual representation of this MIME type.
+  final Uint8List icon;
 
-// TODO: implement
-class MimeTypeInfo {}
+  /// A content description for this MIME type.
+  final String contentDescription;
 
-// TODO: implement
-class ContentObserver {}
+  /// Creates a MIME type description from map.
+  factory MimeTypeInfo.fromMap(BundleMap map) => MimeTypeInfo(
+        label: map['label'] as String,
+        icon: map['icon'] as Uint8List,
+        contentDescription: map['contentDescription'] as String,
+      );
 
-abstract class AndroidContentResolver {
+  /// Converts the MIME type description to map.
+  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{
+        'label': label,
+        'icon': icon,
+        'contentDescription': contentDescription,
+      });
+
+  static const _iconLogLength = 10;
+
+  @override
+  String toString() {
+    final buffer = StringBuffer(objectRuntimeType(this, 'MimeTypeInfo'));
+    buffer.write('(');
+    buffer.write('label: $label, ');
+    // A list of values to show.
+    final iconValuesToShow =
+        icon.sublist(0, math.min(_iconLogLength, icon.length)).join(', ');
+    buffer.write('icon: [$iconValuesToShow');
+    if (icon.length > _iconLogLength) {
+      buffer.write(', ... and ${icon.length - _iconLogLength} more');
+    }
+    buffer.write('], contentDescription: $contentDescription)');
+    return buffer.toString();
+  }
+}
+
+/// Receives call backs for changes to content
+/// https://developer.android.com/reference/android/database/ContentObserver
+class ContentObserver extends PlatformObjectRegistryEntry {
+  /// Creates content observer.
+  ContentObserver() : this._(_uuid.v4());
+  ContentObserver._(this._id)
+      : _methodChannel = MethodChannel('$_channelPrefix/ContentObserver/$_id') {
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
+  }
+
+  @override
+  String get id => _id;
+  final String _id;
+
+  final MethodChannel _methodChannel;
+
+  Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
+    final BundleMap? args =
+        (methodCall.arguments as Map?)?.cast<String, Object?>();
+    switch (methodCall.method) {
+      case 'deliverSelfNotifications':
+        return deliverSelfNotifications;
+      case 'onChange':
+        final uri = args!['uri'] as String?;
+        return onChange(
+          args['selfChange'] as bool,
+          uri == null ? null : Uri.parse(uri),
+          args['flags'] as int?,
+        );
+      case 'onChangeUris':
+        final uris = (args!['uris'] as List).cast<String>();
+        return onChangeUris(
+          args['selfChange'] as bool,
+          uris.map((uri) => Uri.parse(uri)).toList(),
+          args['flags'] as int?,
+        );
+      default:
+        throw PlatformException(
+            code: 'unimplemented',
+            message: 'Method not implemented: ${methodCall.method}');
+    }
+  }
+
+  /// Whether this observer is interested receiving self-change notifications.
+  ///
+  /// Subclasses should override this method to indicate whether the observer
+  /// is interested in receiving notifications for changes that it made to the
+  /// content itself.
+  bool get deliverSelfNotifications => false;
+
+  /// Gets called when a content change occurs.
+  /// Includes the changed content [uri] when available.
+  ///
+  /// Subclasses should override this method to handle content changes.
+  ///
+  /// The [selfChange] will be true if this is a self-change notification.
+  ///
+  /// The [flags] are indicating details about this change.
+  void onChange(bool selfChange, Uri? uri, int? flags) async {}
+
+  /// Gets called when a content change occurs.
+  /// Includes the changed content [uris] when available.
+  ///
+  /// By default calls [onChange] on all the [uris].
+  void onChangeUris(bool selfChange, List<Uri> uris, int? flags) async {
+    for (final uri in uris) {
+      onChange(selfChange, uri, flags);
+    }
+  }
+
+  // Dispatch methods are not exposed. They can only be useful to dispatch
+  // messages on a different supplied handler. Dart doesn't have a way to allow
+  // this, thus dispatching can only be overriden natively.
+  //
+  // If you were just looking for a way to dispatch a notification - just call [onChange] or
+  // [onChangeUris] directly. This is what native [dispatch] does anyways, when there's no
+  // handler supplied.
+}
+
+/// Receives call backs when a data set has been changed, or made invalid.
+/// https://developer.android.com/reference/android/database/DataSetObserver
+class DataSetObserver extends PlatformObjectRegistryEntry {
+  /// Creates content observer.
+  DataSetObserver() : this._(_uuid.v4());
+  DataSetObserver._(this._id)
+      : _methodChannel = MethodChannel('$_channelPrefix/DataSetObserver/$_id') {
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
+  }
+
+  @override
+  String get id => _id;
+  final String _id;
+
+  final MethodChannel _methodChannel;
+
+  Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
+    final BundleMap? args =
+        (methodCall.arguments as Map?)?.cast<String, Object?>();
+    switch (methodCall.method) {
+      case 'onChanged':
+        return onChanged();
+      case 'onInvalidated':
+        return onInvalidated();
+      default:
+        throw PlatformException(
+            code: 'unimplemented',
+            message: 'Method not implemented: ${methodCall.method}');
+    }
+  }
+
+  /// Gets called when the entire data set has changed,
+  /// most likely through a call not exposed in [NativeCursor] deprecated method `requery`.
+  void onChanged() {}
+
+  /// Gets called when the entire data becomes invalid, most likely through
+  /// a call to [NativeCursor.close], or not exposed in [NativeCursor] deprecated method `deactivate`.
+  void onInvalidated() {}
+}
+
+/// A communication interface with native Android ContentResolver
+/// https://developer.android.com/reference/android/content/ContentResolver
+///
+/// Doesn't expose a subset of methods related to sync API and URI permissions,
+/// it seems like they would fit separate packages.
+class AndroidContentResolver {
+  /// Creates a communication interface with native Android ContentResolver.
+  const AndroidContentResolver();
+
+  /// Default AndroidContentResovler instance.
+  ///
+  /// There's no much sense in creating multiple instances of resolver, because
+  /// all of them will ultimately call the same method channel.
+  static const instance = AndroidContentResolver();
+
+  static const MethodChannel _methodChannel =
+      MethodChannel('$_channelPrefix/ContentResolver');
+
   // acquireContentProviderClient(uri: Uri): ContentProviderClient?
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquirecontentproviderclient
   //
@@ -1073,13 +1291,6 @@ abstract class AndroidContentResolver {
   //
   //
 
-  // static addPeriodicSync(account: Account!, authority: String!, extras: Bundle!, pollFrequency: Long): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#addperiodicsync
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
-
   // static addStatusChangeListener(mask: Int, callback: SyncStatusObserver!): Any!
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#addstatuschangelistener
   //
@@ -1094,135 +1305,142 @@ abstract class AndroidContentResolver {
   //
   //
 
-  /// bulkInsert(url: Uri, values: Array<ContentValues!>): Int
+  /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#bulkinsert
-  Future<int> bulkInsert(Uri uri, List<ContentValues> values);
+  Future<int> bulkInsert(Uri uri, List<ContentValues> values) async {
+    final result = await _methodChannel.invokeMethod<int>('bulkInsert', {
+      'uri': uri.toString(),
+      'values': values.map((value) => value.toMap()).toList(),
+    });
+    return result!;
+  }
 
   /// call(uri: Uri, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call
-  Future<BundleMap?> call(String method, String? arg, BundleMap? extras);
+  Future<BundleMap?> call(String method, String? arg, BundleMap? extras) {
+    return _methodChannel.invokeMapMethod<String, Object?>('call', {
+      'method': method,
+      'arg': arg,
+      'extras': extras,
+    });
+  }
 
   /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call_1
   Future<BundleMap?> callWithAuthority(
-      String authority, String method, String? arg, BundleMap? extras);
-
-  // cancelSync(uri: Uri!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#cancelsync
-  //
-  // Deprecated
-  //
-  //
-
-  // static cancelSync(account: Account!, authority: String!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#cancelsync_1
-  //
-  // static cancelSync(request: SyncRequest!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#cancelsync_2
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
+      String authority, String method, String? arg, BundleMap? extras) {
+    return _methodChannel
+        .invokeMapMethod<String, Object?>('callWithAuthority', {
+      'authority': authority,
+      'method': method,
+      'arg': arg,
+      'extras': extras,
+    });
+  }
 
   /// canonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#canonicalize
-  Future<Uri?> canonicalize(Uri url);
+  Future<Uri?> canonicalize(Uri url) async {
+    final result = await _methodChannel.invokeMethod<String>('canonicalize', {
+      'url': url.toString(),
+    });
+    return result == null ? null : Uri.parse(result);
+  }
 
-  /// delete(url: Uri, where: String?, selectionArgs: Array<String!>?): Int
+  /// delete(uri: Uri, arg: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete
-  Future<int> delete(Uri uri, String? selection, List<String>? selectionArgs);
+  Future<int> delete(
+      Uri uri, String? selection, List<String>? selectionArgs) async {
+    final result = await _methodChannel.invokeMethod<int>('delete', {
+      'uri': uri.toString(),
+      'selection': selection,
+      'selectionArgs': selectionArgs,
+    });
+    return result!;
+  }
 
-  /// delete(url: Uri, extras: Bundle?): Int
+  /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete_1
-  Future<int> deleteWithExtras(Uri uri, BundleMap? extras);
+  Future<int> deleteWithExtras(Uri uri, BundleMap? extras) async {
+    final result = await _methodChannel.invokeMethod<int>('deleteWithExtras', {
+      'uri': uri.toString(),
+      'extras': extras,
+    });
+    return result!;
+  }
 
-  // static getCurrentSync(): SyncInfo!
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getcurrentsync
-  //
-  // Deprecated
-  //
-  //
-
-  /// static getCurrentSyncs(): MutableList<SyncInfo!>!
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getcurrentsyncs
-  static Future<List<SyncInfo>> getCurrentSyncs();
-
-  // static getIsSyncable(account: Account!, authority: String!): Int
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getissyncable
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
-
-  /// static getMasterSyncAutomatically(): Boolean
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getmastersyncautomatically
-  static Future<bool> getMasterSyncAutomatically();
-
-  /// getOutgoingPersistedUriPermissions(): MutableList<UriPermission!>
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getoutgoingpersisteduripermissions
-  Future<List<UriPermission>> getOutgoingPersistedUriPermissions();
-
-  // static getPeriodicSyncs(account: Account!, authority: String!): MutableList<PeriodicSync!>!
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getperiodicsyncs
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
-
-  /// getPersistedUriPermissions(): MutableList<UriPermission!>
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getpersisteduripermissions
-  Future<List<UriPermission>> getPersistedUriPermissions();
-
-  /// getStreamTypes(url: Uri, mimeTypeFilter: String): Array<String!>?
+  /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getstreamtypes
-  Future<List<String>?> getStreamTypes(Uri uri, String mimeTypeFilter);
+  Future<List<String>?> getStreamTypes(Uri uri, String mimeTypeFilter) {
+    return _methodChannel.invokeListMethod<String>('getStreamTypes', {
+      'uri': uri.toString(),
+      'mimeTypeFilter': mimeTypeFilter,
+    });
+  }
 
-  /// static getSyncAdapterTypes(): Array<SyncAdapterType!>!
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getsyncadaptertypes
-  static Future<List<SyncAdapterType>> getSyncAdapterTypes();
-
-  // static getSyncAutomatically(account: Account!, authority: String!): Boolean
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#getsyncautomatically
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
-
-  /// getType(url: Uri): String?
+  /// getType(uri: Uri): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettype
-  Future<String?> getType(Uri uri);
+  Future<String?> getType(Uri uri) {
+    return _methodChannel.invokeMethod<String>('getType', {
+      'uri': uri.toString(),
+    });
+  }
 
   /// getTypeInfo(mimeType: String): ContentResolver.MimeTypeInfo
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettypeinfo
-  Future<MimeTypeInfo> getTypeInfo(String mimeType);
+  Future<MimeTypeInfo> getTypeInfo(String mimeType) async {
+    final result =
+        await _methodChannel.invokeMapMethod<String, Object?>('getTypeInfo', {
+      'mimeType': mimeType,
+    });
+    return MimeTypeInfo.fromMap(result!);
+  }
 
-  /// insert(url: Uri, values: ContentValues?): Uri?
+  /// insert(uri: Uri, values: ContentValues?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert
-  Future<Uri?> insert(Uri uri, ContentValues? values);
+  Future<Uri?> insert(Uri uri, ContentValues? values) async {
+    final result = await _methodChannel.invokeMethod<String>('insert', {
+      'uri': uri.toString(),
+      'values': values?.toMap(),
+    });
+    return result == null ? null : Uri.parse(result);
+  }
 
-  /// insert(url: Uri, values: ContentValues?, extras: Bundle?): Uri?
+  /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert_1
   Future<Uri?> insertWithExtras(
-      Uri uri, ContentValues? values, BundleMap? extras);
-
-  // static isSyncActive(account: Account!, authority: String!): Boolean
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#issyncactive
-  //
-  // static isSyncPending(account: Account!, authority: String!): Boolean
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#issyncpending
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
+      Uri uri, ContentValues? values, BundleMap? extras) async {
+    final result =
+        await _methodChannel.invokeMethod<String>('insertWithExtras', {
+      'uri': uri.toString(),
+      'values': values?.toMap(),
+      'extras': extras,
+    });
+    return result == null ? null : Uri.parse(result);
+  }
 
   /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
-  Future<Uint8List> loadThumbnail(
-      Uri uri, Size size, CancellationSignal? cancellationSignal);
+  Future<Uint8List> loadThumbnail(Uri uri, int width, int height,
+      CancellationSignal? cancellationSignal) async {
+    final result =
+        await _methodChannel.invokeMethod<Uint8List>('loadThumbnail', {
+      'uri': uri.toString(),
+      'width': width,
+      'height': height,
+      'cancellationSignal': cancellationSignal?.id,
+    });
+    return result!;
+  }
 
   /// notifyChange(uri: Uri, observer: ContentObserver?): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange
-  Future<void> notifyChange(Uri uri, ContentObserver? observer);
+  Future<void> notifyChange(Uri uri, ContentObserver? observer) {
+    return _methodChannel.invokeMethod<void>('notifyChange', {
+      'uri': uri.toString(),
+      'observer': observer?.id,
+    });
+  }
 
   // notifyChange(uri: Uri, observer: ContentObserver?, syncToNetwork: Boolean): Unit
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_1
@@ -1237,15 +1455,27 @@ abstract class AndroidContentResolver {
     Uri uri,
     ContentObserver? observer,
     int flags,
-  );
+  ) {
+    return _methodChannel.invokeMethod<void>('notifyChangeWithFlags', {
+      'uri': uri.toString(),
+      'observer': observer?.id,
+      'flags': flags,
+    });
+  }
 
   /// notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_3
   Future<void> notifyChangeWithList(
-    List<Uri> uri,
+    List<Uri> uris,
     ContentObserver? observer,
     int flags,
-  );
+  ) {
+    return _methodChannel.invokeMethod<void>('notifyChangeWithList', {
+      'uris': uris.map((uri) => uri.toString()).toList(),
+      'observer': observer?.id,
+      'flags': flags,
+    });
+  }
 
   // openAssetFile(uri: Uri, mode: String, signal: CancellationSignal?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#openassetfile
@@ -1289,57 +1519,91 @@ abstract class AndroidContentResolver {
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query
-  Future<CursorData> query(
+  Future<NativeCursor?> query(
     Uri uri,
     List<String>? projection,
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
-  );
+  ) async {
+    final result = await _methodChannel.invokeMethod<String>('query', {
+      'uri': uri.toString(),
+      'projection': projection,
+      'selection': selection,
+      'selectionArgs': selectionArgs,
+      'sortOrder': sortOrder,
+    });
+    return result == null ? null : NativeCursor.fromId(result);
+  }
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_1
-  Future<CursorData> queryWithSignal(
+  Future<NativeCursor?> queryWithSignal(
     Uri uri,
     List<String>? projection,
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
     CancellationSignal? cancellationSignal,
-  );
+  ) async {
+    final result =
+        await _methodChannel.invokeMethod<String>('queryWithSignal', {
+      'uri': uri.toString(),
+      'projection': projection,
+      'selection': selection,
+      'selectionArgs': selectionArgs,
+      'sortOrder': sortOrder,
+      'cancellationSignal': cancellationSignal?.id,
+    });
+    return result == null ? null : NativeCursor.fromId(result);
+  }
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_2
-  Future<CursorData> queryWithBundle(
+  Future<NativeCursor?> queryWithBundle(
     Uri uri,
     List<String>? projection,
     BundleMap? queryArgs,
     CancellationSignal? cancellationSignal,
-  );
+  ) async {
+    final result =
+        await _methodChannel.invokeMethod<String>('queryWithBundle', {
+      'uri': uri.toString(),
+      'projection': projection,
+      'queryArgs': queryArgs,
+      'cancellationSignal': cancellationSignal?.id,
+    });
+    return result == null ? null : NativeCursor.fromId(result);
+  }
 
-  /// refresh(url: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
+  /// refresh(uri: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#refresh
   Future<bool> refresh(
     Uri uri,
     BundleMap? extras,
     CancellationSignal? cancellationSignal,
-  );
+  ) async {
+    final result = await _methodChannel.invokeMethod<bool>('refresh', {
+      'uri': uri.toString(),
+      'extras': extras,
+      'cancellationSignal': cancellationSignal?.id,
+    });
+    return result!;
+  }
 
   /// registerContentObserver(uri: Uri, notifyForDescendants: Boolean, observer: ContentObserver): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#registercontentobserver
   Future<void> registerContentObserver(
-      Uri uri, bool notifyForDescendants, ContentObserver observer);
-
-  /// releasePersistableUriPermission(uri: Uri, modeFlags: Int): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#releasepersistableuripermission
-  Future<void> releasePersistableUriPermission(Uri uri, int modeFlags);
-
-  // static removePeriodicSync(account: Account!, authority: String!, extras: Bundle!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#removeperiodicsync
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
+    Uri uri,
+    bool notifyForDescendants,
+    ContentObserver observer,
+  ) {
+    return _methodChannel.invokeMethod<void>('registerContentObserver', {
+      'uri': uri.toString(),
+      'notifyForDescendants': notifyForDescendants,
+      'observer': observer.id,
+    });
+  }
 
   // static removeStatusChangeListener(handle: Any!): Unit
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#removestatuschangelistener
@@ -1348,75 +1612,52 @@ abstract class AndroidContentResolver {
   //
   //
 
-  // static requestSync(account: Account!, authority: String!, extras: Bundle!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#requestsync
-  //
-  // static requestSync(request: SyncRequest!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#requestsync_1
-  //
-  // static setIsSyncable(account: Account!, authority: String!, syncable: Int): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#setissyncable
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
-
-  /// static setMasterSyncAutomatically(sync: Boolean): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#setmastersyncautomatically
-  static Future<void> setMasterSyncAutomatically(bool value);
-
-  // static setSyncAutomatically(account: Account!, authority: String!, sync: Boolean): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#setsyncautomatically
-  //
-  // TODO: implement with the Account from https://pub.dev/packages/accountmanager
-  //
-  //
-
-  // startSync(uri: Uri!, extras: Bundle!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#startsync
-  //
-  // Deprecated
-  //
-  //
-
-  /// takePersistableUriPermission(uri: Uri, modeFlags: Int): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#takepersistableuripermission
-  Future<void> takePersistableUriPermission(Uri uri, int modeFlags);
-
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#uncanonicalize
-  Future<Uri?> uncanonicalize(Uri url);
+  Future<Uri?> uncanonicalize(Uri url) async {
+    final result = await _methodChannel.invokeMethod<String>('uncanonicalize', {
+      'url': url.toString(),
+    });
+    return result == null ? null : Uri.parse(result);
+  }
 
   /// unregisterContentObserver(observer: ContentObserver): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#unregistercontentobserver
-  Future<void> unregisterContentObserver(ContentObserver observer);
+  Future<void> unregisterContentObserver(ContentObserver observer) {
+    return _methodChannel.invokeMethod<void>('unregisterContentObserver', {
+      'observer': observer.id,
+    });
+  }
 
-  /// update(uri: Uri, values: ContentValues?, where: String?, selectionArgs: Array<String!>?): Int
+  /// update(uri: Uri, values: ContentValues?, arg: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update
   Future<int> update(
     Uri uri,
     ContentValues? values,
     String? selection,
     List<String>? selectionArgs,
-  );
+  ) async {
+    final result = await _methodChannel.invokeMethod<int>('update', {
+      'uri': uri.toString(),
+      'values': values?.toMap(),
+      'selection': selection,
+      'selectionArgs': selectionArgs,
+    });
+    return result!;
+  }
 
   /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update_1
   Future<int> updateWithExtras(
-      Uri uri, ContentValues? values, BundleMap? extras);
-
-  /// static validateSyncExtrasBundle(extras: Bundle!): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#validatesyncextrasbundle
-  static Future<void> validateSyncExtrasBundle(BundleMap extras);
-
-  /// static wrap(wrapped: ContentProvider): ContentResolver
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#wrap
-  static AndroidContentResolver wrap(AndroidContentProvider wrapped);
-
-  // static wrap(wrapped: ContentProviderClient): ContentResolver
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#wrap_1
-  //
-  // TODO: implement clients
-  //
-  //
+    Uri uri,
+    ContentValues? values,
+    BundleMap? extras,
+  ) async {
+    final result = await _methodChannel.invokeMethod<int>('updateWithExtras', {
+      'uri': uri.toString(),
+      'values': values?.toMap(),
+      'extras': extras,
+    });
+    return result!;
+  }
 }

@@ -7,7 +7,6 @@ void main() {
   group('CallingIdentity', () {
     test('toString', () {
       final identity = CallingIdentity.fromMap(<String, Object?>{'id': 0});
-      ;
       expect(identity.toString(), 'CallingIdentity(0)');
     });
 
@@ -16,36 +15,44 @@ void main() {
           CallingIdentity.fromMap(<String, Object?>{'id': id});
       final identity = createIdentity(0);
       expect(identity.id, 0);
+      expect(identity.toMap(), <String, Object?>{'id': 0});
+      expect(() => identity.toMap()..['key'] = 'value', throwsUnsupportedError);
       expect(identity, createIdentity(0));
       expect(identity, isNot(createIdentity(1)));
     });
   });
 
   group('PathPermission', () {
+    const kReadPermission = 'com.example.permission.READ';
+    const kWritePermission = 'com.example.permission.WRITE';
+
     PathPermission createPathPermission({
-      String readPermission = 'com.example.permission.READ',
-      String writePermission = 'com.example.permission.WRITE',
+      String readPermission = kReadPermission,
+      String writePermission = kWritePermission,
     }) =>
-        PathPermission.fromMap(<String, dynamic>{
-          'readPermission': readPermission,
-          'writePermission': writePermission,
-        });
+        PathPermission(
+          readPermission: readPermission,
+          writePermission: writePermission,
+        );
 
     test('constructor and properties', () {
       final pathPermission = createPathPermission();
-      expect(pathPermission.readPermission, 'com.example.permission.READ');
-      expect(pathPermission.writePermission, 'com.example.permission.WRITE');
+      expect(pathPermission.readPermission, kReadPermission);
+      expect(pathPermission.writePermission, kWritePermission);
     });
 
     test('toString', () {
       final pathPermission = createPathPermission();
       expect(pathPermission.toString(),
-          'PathPermission(read: com.example.permission.READ, write: com.example.permission.WRITE)');
+          'PathPermission(read: $kReadPermission, write: $kWritePermission)');
     });
 
     test('serialization and equality', () {
       final pathPermission = createPathPermission();
       expect(pathPermission, createPathPermission());
+      expect(pathPermission, PathPermission.fromMap(pathPermission.toMap()));
+      expect(() => pathPermission.toMap()..['key'] = 'value',
+          throwsUnsupportedError);
       expect(pathPermission,
           isNot(createPathPermission(readPermission: 'other_permission')));
       expect(pathPermission,
@@ -73,11 +80,24 @@ void main() {
       expect(values.isEmpty, true);
     });
 
-    test('copyFrom and equality', () {
+    test('serialization, copyFrom and equality', () {
       final values = ContentValues();
+      expect(values, ContentValues.fromMap(values.toMap()));
+      expect(() => values.toMap()..['key'] = 'value', throwsUnsupportedError);
       values.putString(someKey, someValue);
       expect(values, ContentValues.copyFrom(values));
       expect(values, isNot(ContentValues()));
+    });
+
+    test(
+        "changing map passed to constructors doesn't change the internal state of values",
+        () {
+      final sourceMap = <String, Object?>{};
+      final fromMap = ContentValues.fromMap(sourceMap);
+      final copyFrom = ContentValues.copyFrom(fromMap);
+      sourceMap[someKey] = someValue;
+      expect(fromMap.isEmpty, true);
+      expect(copyFrom.isEmpty, true);
     });
 
     test('toString', () {
@@ -193,6 +213,50 @@ void main() {
       final values = ContentValues();
       values.putBytes(someKey, uint8list);
       expect(values.getBytes(someKey), uint8list);
+    });
+  });
+
+  group('MimeTypeInfo', () {
+    MimeTypeInfo createMimeTypeInfo({
+      String label = 'label',
+      List<int>? icon,
+      String contentDescription = 'contentDescription',
+    }) =>
+        MimeTypeInfo(
+          label: label,
+          icon: icon != null
+              ? Uint8List.fromList(icon)
+              : Uint8List.fromList(const []),
+          contentDescription: contentDescription,
+        );
+
+    test('constructor and properties', () {
+      final mimeTypeInfo = createMimeTypeInfo();
+      expect(mimeTypeInfo.label, 'label');
+      expect(mimeTypeInfo.icon, const <int>[]);
+      expect(mimeTypeInfo.contentDescription, 'contentDescription');
+    });
+
+    test('toString', () {
+      final mimeTypeInfoShort = createMimeTypeInfo();
+      final mimeTypeInfoMiddle =
+          createMimeTypeInfo(icon: List.generate(10, (index) => index));
+      final mimeTypeInfoLong =
+          createMimeTypeInfo(icon: List.generate(100, (index) => index));
+      expect(mimeTypeInfoShort.toString(),
+          'MimeTypeInfo(label: label, icon: [], contentDescription: contentDescription)');
+      expect(mimeTypeInfoMiddle.toString(),
+          'MimeTypeInfo(label: label, icon: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], contentDescription: contentDescription)');
+      expect(mimeTypeInfoLong.toString(),
+          'MimeTypeInfo(label: label, icon: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ... and 90 more], contentDescription: contentDescription)');
+    });
+
+    test('serialization', () {
+      final mimeTypeInfo = createMimeTypeInfo();
+      expect(mimeTypeInfo.toMap(),
+          MimeTypeInfo.fromMap(mimeTypeInfo.toMap()).toMap());
+      expect(() => mimeTypeInfo.toMap()..['key'] = 'value',
+          throwsUnsupportedError);
     });
   });
 }
