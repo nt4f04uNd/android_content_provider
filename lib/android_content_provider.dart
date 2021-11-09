@@ -69,31 +69,15 @@ class _Native {
 typedef BundleMap = Map<String, Object?>;
 
 /// Opaque token representing the identity of an incoming IPC.
-class CallingIdentity {
-  const CallingIdentity._(this.id);
-
-  /// The ID of this token tied to a native object instance.
-  final int id;
-
-  @override
-  bool operator ==(Object other) {
-    return other is CallingIdentity && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
+class CallingIdentity extends PlatformObjectRegistryEntry {
+  /// Creates native cursor from an existing ID.
+  @internal
+  CallingIdentity.fromId(String id) : super.fromId(id);
 
   @override
   String toString() {
     return '${objectRuntimeType(this, 'CallingIdentity')}($id)';
   }
-
-  /// Creates an identity from map.
-  factory CallingIdentity.fromMap(BundleMap map) =>
-      CallingIdentity._(map['id'] as int);
-
-  /// Converts the identity to map.
-  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{'id': id});
 }
 
 /// Description of permissions needed to access a particular path in a content provider
@@ -350,11 +334,21 @@ class _NumberWrapper<T extends num> {
 /// A wrapper for value in [ContentValues.putByte].
 class _Byte extends _NumberWrapper<int> {
   const _Byte(int value) : super(value);
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, '_Byte')}($value)';
+  }
 }
 
 /// A wrapper for value in [ContentValues.putShort].
 class _Short extends _NumberWrapper<int> {
   const _Short(int value) : super(value);
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, '_Short')}($value)';
+  }
 }
 
 //
@@ -364,11 +358,21 @@ class _Short extends _NumberWrapper<int> {
 /// A wrapper for value in [ContentValues.putLong].
 class _Long extends _NumberWrapper<int> {
   const _Long(int value) : super(value);
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, '_Long')}($value)';
+  }
 }
 
 /// A wrapper for value in [ContentValues.putFloat].
 class _Float extends _NumberWrapper<double> {
   const _Float(double value) : super(value);
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, '_Float')}($value)';
+  }
 }
 
 //
@@ -492,6 +496,11 @@ class NativeCursor extends PlatformObjectRegistryEntry {
   ];
 
   final MethodChannel _methodChannel;
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'NativeCursor')}($id)';
+  }
 
   bool get closed => _closed;
   bool _closed = false;
@@ -631,6 +640,7 @@ class NativeCursorGetBatch {
   final NativeCursor _cursor;
 
   final List<List<Object?>> _operations = [];
+  List<List<Object?>> get operations => List.unmodifiable(_operations);
 
   void _add(String method, [Object? argument]) {
     _operations.add([method, argument]);
@@ -925,6 +935,14 @@ abstract class PlatformObjectRegistryEntry {
   ///
   /// Typically an UUID v4 string.
   final String id;
+
+  @override
+  bool operator ==(Object other) {
+    return other is PlatformObjectRegistryEntry && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 /// Provides the ability to cancel an operation in progress
@@ -942,6 +960,11 @@ class CancellationSignal extends PlatformObjectRegistryEntry {
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
   final MethodChannel _methodChannel;
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'CancellationSignal')}($id)';
+  }
 
   /// Whether the operation is cancalled.
   bool get cancelled => _cancelled;
@@ -1045,6 +1068,11 @@ abstract class AndroidContentProvider {
     }
   }
 
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'AndroidContentProvider')}($authority)';
+  }
+
   // applyBatch(authority: String, operations: ArrayList<ContentProviderOperation!>): Array<ContentProviderResult!>
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#applybatch
   //
@@ -1107,9 +1135,9 @@ abstract class AndroidContentProvider {
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#clearcallingidentity
   @native
   Future<CallingIdentity> clearCallingIdentity() async {
-    final result = await _methodChannel
-        .invokeMapMethod<String, Object?>('clearCallingIdentity');
-    return CallingIdentity.fromMap(result!);
+    final result =
+        await _methodChannel.invokeMethod<String>('clearCallingIdentity');
+    return CallingIdentity.fromId(result!);
   }
 
   /// delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int
@@ -1442,6 +1470,11 @@ class ContentObserver extends PlatformObjectRegistryEntry {
     }
   }
 
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'ContentObserver')}($id)';
+  }
+
   /// Whether this observer is interested receiving self-change notifications.
   ///
   /// Subclasses should override this method to indicate whether the observer
@@ -1507,6 +1540,11 @@ class DataSetObserver extends PlatformObjectRegistryEntry {
             code: 'unimplemented',
             message: 'Method not implemented: ${methodCall.method}');
     }
+  }
+
+  @override
+  String toString() {
+    return '${objectRuntimeType(this, 'DataSetObserver')}($id)';
   }
 
   /// Gets called when the entire data set has changed,
