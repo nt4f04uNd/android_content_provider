@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
-import 'package:rxdart/rxdart.dart';
 import 'package:uuid/uuid.dart';
 import 'package:meta/meta.dart';
 
@@ -14,18 +13,17 @@ const _channelPrefix = 'com.nt4f04und.android_content_provider';
 
 /// The android_content_provider plugin binding.
 ///
-/// Allows to create content providers and content resolvers.
+/// Allows to create set a factory for [AndroidContentProvider]s.
 abstract class AndroidContentProviderPlugin {
-  static late final MethodChannel _channel = () {
-    WidgetsFlutterBinding.ensureInitialized();
-    return const MethodChannel('$_channelPrefix/plugin')
-      ..setMethodCallHandler(_handleMethodCall);
-  }();
+  static const _methodChannel = MethodChannel('$_channelPrefix/plugin');
+
+  static late final StreamController<String> _onCreateStreamController =
+      StreamController();
 
   static Future<void> _handleMethodCall(MethodCall call) async {
     switch (call.method) {
       case 'createContentProvider':
-        _onCreate.add(call.method);
+        _onCreateStreamController.add(call.method);
         break;
       default:
         throw PlatformException(
@@ -34,23 +32,24 @@ abstract class AndroidContentProviderPlugin {
     }
   }
 
-  static late final ReplaySubject<String> _onCreate = ReplaySubject();
-
-  /// Sets up a listener to the platform notifications about content provider
-  /// `onCreate` calls.
+  /// Sets up a factory to create [AndroidContentProvider]s from the platform requests
+  /// when the native ContentProvider `onCreate` is called.
   ///
-  /// All messages received before this was called will be delivered when
-  /// first listener is set.
-  static void setup({required CreateListener createListener}) {
-    if (_onCreate.hasListener) {
-      throw StateError("AndroidContentProviderPlugin already was set up");
+  /// Call this from the `androidContentProviderEntrypoint` function if you use the
+  /// [AndroidContentProvider].
+  static void setUp({required AndroidContentProviderFactory factory}) {
+    WidgetsFlutterBinding.ensureInitialized();
+    if (_onCreateStreamController.hasListener) {
+      throw StateError("AndroidContentProviderPlugin has already been set up for this engine");
     }
-    _onCreate.listen(createListener);
+    _onCreateStreamController.stream.listen(factory);
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 }
 
 /// Signature for [AndroidContentProviderPlugin.setup] listener argument.
-typedef CreateListener = AndroidContentProvider Function(String authority);
+typedef AndroidContentProviderFactory = AndroidContentProvider Function(
+    String authority);
 
 /// Annotation on [AndroidContentProvider] methods that indicates that the method
 /// is has a default native implmentation and can be called by dart code to perform some action or
