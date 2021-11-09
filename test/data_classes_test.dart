@@ -80,23 +80,17 @@ void main() {
       expect(values.isEmpty, true);
     });
 
-    test('serialization, copyFrom and equality', () {
+    test('equality', () {
       final values = ContentValues();
-      expect(values, ContentValues.fromMap(values.toMap()));
-      expect(() => values.toMap()..['key'] = 'value', throwsUnsupportedError);
       values.putString(someKey, someValue);
       expect(values, ContentValues.copyFrom(values));
       expect(values, isNot(ContentValues()));
     });
 
-    test(
-        "changing map passed to constructors doesn't change the internal state of values",
-        () {
-      final sourceMap = <String, Object?>{};
-      final fromMap = ContentValues.fromMap(sourceMap);
-      final copyFrom = ContentValues.copyFrom(fromMap);
-      sourceMap[someKey] = someValue;
-      expect(fromMap.isEmpty, true);
+    test("copyFrom actually copies values", () {
+      final values = ContentValues();
+      final copyFrom = ContentValues.copyFrom(values);
+      values.putString(someKey, someValue);
       expect(copyFrom.isEmpty, true);
     });
 

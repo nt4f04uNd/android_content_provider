@@ -149,15 +149,10 @@ class PathPermission {
 class ContentValues {
   /// Creates [ContentValues].
   ContentValues() : _map = <String, Object?>{};
+  ContentValues._(this._map);
 
   /// Copies values from other [ContentValues] instances.
-  ContentValues.copyFrom(ContentValues other) : _map = other._map;
-
-  /// Creates values from map.
-  ContentValues.fromMap(Map<String, Object?> map) : _map = BundleMap.from(map);
-
-  /// Converts the values to map.
-  BundleMap toMap() => BundleMap.unmodifiable(_map);
+  ContentValues.copyFrom(ContentValues other) : _map = Map.from(other._map);
 
   /// Content values map.
   final Map<String, Object?> _map;
@@ -336,32 +331,30 @@ class ContentValues {
   }
 }
 
-/// A wrapper for value in [ContentValues.putByte].
-class _Byte {
-  const _Byte(this.value);
-  final int value;
+class _NumberWrapper<T extends num> {
+  const _NumberWrapper(this.value);
+
+  /// Wrapped number value.
+  final T value;
 
   @override
   bool operator ==(Object other) {
-    return other is _Byte && other.value == value;
+    return other is num && other == value ||
+        other is _NumberWrapper && other.value == value;
   }
 
   @override
   int get hashCode => value.hashCode;
 }
 
+/// A wrapper for value in [ContentValues.putByte].
+class _Byte extends _NumberWrapper<int> {
+  const _Byte(int value) : super(value);
+}
+
 /// A wrapper for value in [ContentValues.putShort].
-class _Short {
-  const _Short(this.value);
-  final int value;
-
-  @override
-  bool operator ==(Object other) {
-    return other is _Short && other.value == value;
-  }
-
-  @override
-  int get hashCode => value.hashCode;
+class _Short extends _NumberWrapper<int> {
+  const _Short(int value) : super(value);
 }
 
 //
@@ -369,31 +362,13 @@ class _Short {
 //
 
 /// A wrapper for value in [ContentValues.putLong].
-class _Long {
-  const _Long(this.value);
-  final int value;
-
-  @override
-  bool operator ==(Object other) {
-    return other is _Long && other.value == value;
-  }
-
-  @override
-  int get hashCode => value.hashCode;
+class _Long extends _NumberWrapper<int> {
+  const _Long(int value) : super(value);
 }
 
 /// A wrapper for value in [ContentValues.putFloat].
-class _Float {
-  const _Float(this.value);
-  final double value;
-
-  @override
-  bool operator ==(Object other) {
-    return other is _Float && other.value == value;
-  }
-
-  @override
-  int get hashCode => value.hashCode;
+class _Float extends _NumberWrapper<double> {
+  const _Float(double value) : super(value);
 }
 
 //
@@ -406,7 +381,8 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   /// Creates the codec.
   const AndroidContentProviderMessageCodec();
 
-  // Java types that need to be supported
+  static const int _kContentValues = 132;
+  // Java types that need to be supported in the ContentValues
   static const int _kByte = 128;
   static const int _kShort = 129;
   // value copied from the [StandardMessageCodec._valueInt32]
@@ -419,24 +395,33 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
-    if (value is _Byte) {
-      buffer.putUint8(_kByte);
-      buffer.putInt32(value.value);
-    } else if (value is _Short) {
-      buffer.putUint8(_kShort);
-      buffer.putInt32(value.value);
-    } else if (value is int) {
-      buffer.putUint8(_kInteger);
-      buffer.putInt32(value);
-    } else if (value is _Long) {
-      buffer.putUint8(_kLong);
-      buffer.putInt64(value.value);
-    } else if (value is _Float) {
-      buffer.putUint8(_kFloat);
-      buffer.putFloat64(value.value);
-    } else if (value is double) {
-      buffer.putUint8(_kDouble);
-      buffer.putFloat64(value);
+    if (value is ContentValues) {
+      buffer.putUint8(_kContentValues);
+      writeSize(buffer, value.length);
+      value._map.forEach((Object? key, Object? value) {
+        writeValue(buffer, key);
+        if (value is _Byte) {
+          buffer.putUint8(_kByte);
+          buffer.putInt32(value.value);
+        } else if (value is _Short) {
+          buffer.putUint8(_kShort);
+          buffer.putInt32(value.value);
+        } else if (value is int) {
+          buffer.putUint8(_kInteger);
+          buffer.putInt32(value);
+        } else if (value is _Long) {
+          buffer.putUint8(_kLong);
+          buffer.putInt64(value.value);
+        } else if (value is _Float) {
+          buffer.putUint8(_kFloat);
+          buffer.putFloat64(value.value);
+        } else if (value is double) {
+          buffer.putUint8(_kDouble);
+          buffer.putFloat64(value);
+        } else {
+          writeValue(buffer, value);
+        }
+      });
     } else {
       super.writeValue(buffer, value);
     }
@@ -445,6 +430,13 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
+      case _kContentValues:
+        final int length = readSize(buffer);
+        final Map<String, Object?> result = <String, Object?>{};
+        for (int i = 0; i < length; i++) {
+          result[readValue(buffer) as String] = readValue(buffer);
+        }
+        return ContentValues._(result);
       case _kByte:
       case _kShort:
       case _kInteger:
@@ -463,7 +455,7 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 /// The cursor that calls in to platform Cursor
 /// https://developer.android.com/reference/android/database/Cursor
 ///
-/// The operations are packed into [NativeCursorBatch] to achieve the best performance
+/// The operations are packed into [NativeCursorGetBatch] to achieve the best performance
 /// by reducing Flutter channel bottle-necking. Cursor operations can often be
 /// represented as batches, such as reading all values from each row.
 ///
@@ -481,27 +473,297 @@ class NativeCursor extends PlatformObjectRegistryEntry {
       : _methodChannel = MethodChannel('$_channelPrefix/Cursor/$id'),
         super.fromId(id);
 
+  /// Supported types in Android SQLite.
+  ///
+  /// On of these types will be returned from [NativeCursorGetBatch.getType].
+  ///
+  /// Represents these static Cursor fields:
+  ///  * FIELD_TYPE_NULL
+  ///  * FIELD_TYPE_INTEGER
+  ///  * FIELD_TYPE_FLOAT
+  ///  * FIELD_TYPE_STRING
+  ///  * FIELD_TYPE_BLOB
+  static List<Type> supportedFieldTypes = [
+    Null,
+    int,
+    double,
+    String,
+    Uint8List,
+  ];
+
   final MethodChannel _methodChannel;
 
-  /// Creates a batch operation.
-  NativeCursorBatch createBatch() {
-    return NativeCursorBatch();
+  bool get closed => _closed;
+  bool _closed = false;
+
+  Future<void> close() {
+    _closed = true;
+    return _methodChannel.invokeMethod<void>('close');
+  }
+
+  Future<bool> move(int offset) async {
+    final result = await _methodChannel.invokeMethod<bool>('move', {
+      'offset': offset,
+    });
+    return result!;
+  }
+
+  Future<bool> moveToPosition(int position) async {
+    final result = await _methodChannel.invokeMethod<bool>('moveToPosition', {
+      'position': position,
+    });
+    return result!;
+  }
+
+  Future<bool> moveToFirst() async {
+    final result = await _methodChannel.invokeMethod<bool>('moveToFirst');
+    return result!;
+  }
+
+  Future<bool> moveToLast() async {
+    final result = await _methodChannel.invokeMethod<bool>('moveToLast');
+    return result!;
+  }
+
+  Future<bool> moveToNext() async {
+    final result = await _methodChannel.invokeMethod<bool>('moveToNext');
+    return result!;
+  }
+
+  Future<bool> moveToPrevious() async {
+    final result = await _methodChannel.invokeMethod<bool>('moveToPrevious');
+    return result!;
+  }
+
+  Future<void> registerContentObserver(ContentObserver observer) {
+    return _methodChannel.invokeMethod<bool>('registerContentObserver', {
+      'observer': observer.id,
+    });
+  }
+
+  Future<void> unregisterContentObserver(ContentObserver observer) {
+    return _methodChannel.invokeMethod<bool>('unregisterContentObserver', {
+      'observer': observer.id,
+    });
+  }
+
+  Future<void> registerDataSetObserver(DataSetObserver observer) {
+    return _methodChannel.invokeMethod<bool>('registerDataSetObserver', {
+      'observer': observer.id,
+    });
+  }
+
+  Future<void> unregisterDataSetObserver(DataSetObserver observer) {
+    return _methodChannel.invokeMethod<bool>('unregisterDataSetObserver', {
+      'observer': observer.id,
+    });
+  }
+
+  Future<void> setNotificationUri(Uri uri) {
+    return _methodChannel.invokeMethod<bool>('setNotificationUri', {
+      'uri': uri.toString(),
+    });
+  }
+
+  Future<void> setNotificationUris(List<Uri> uris) {
+    return _methodChannel.invokeMethod<bool>('setNotificationUris', {
+      'uris': uris.map((uri) => uri.toString()).toList(),
+    });
+  }
+
+  Future<Uri?> getNotificationUri() async {
+    final result =
+        await _methodChannel.invokeMethod<String>('getNotificationUri');
+    return result == null ? null : Uri.parse(result);
+  }
+
+  Future<List<Uri>?> getNotificationUris() async {
+    final result =
+        await _methodChannel.invokeListMethod<String>('getNotificationUris');
+    return result?.map((uri) => Uri.parse(uri)).toList();
+  }
+
+  Future<void> setExtras(BundleMap extras) {
+    return _methodChannel.invokeMethod<bool>('setExtras', {
+      'extras': extras,
+    });
+  }
+
+  Future<BundleMap> getExtras() async {
+    final result =
+        await _methodChannel.invokeMapMethod<String, Object?>('getExtras');
+    return result!;
+  }
+
+  Future<BundleMap> respond(BundleMap extras) async {
+    final result = await _methodChannel
+        .invokeMapMethod<String, Object?>('respond', {'extras': extras});
+    return result!;
+  }
+
+  // Not exposed methods:
+  //  * copyStringToBuffer - it's not possible to send a buffer through a native channel,
+  //    and doing so will be more expensive than just getting a string
+  //  * deactivate - deprecated
+  //  * requery - deprecated
+  //  * getWantsAllOnMoveCalls - intended to be overriden, which doesn't fit this class.
+  //    Also, it doesn't seem to be useful in dart
+
+  /// Creates a batch operation of getting data from cursor.
+  NativeCursorGetBatch batchedGet() {
+    return NativeCursorGetBatch._(this);
   }
 }
 
-/// Cursor operations are can often be represented as batches, such as
+/// Represents a batched get operation from native cursor.
+///
+/// This class uses a builder pattern so methods can be called one after another.
+///
+/// To commit the batch and get the data, call [commit].
+///
+/// Cursor get operations are can often be represented as batches, such as
 /// reading all values from each row. This representation allows
 /// to reduce Flutter channel bottle-necking.
 ///
 /// Used in [NativeCursor].
-class NativeCursorBatch {
-  final List<Object?> _operations = [];
-  List<Object?> get operations => List.unmodifiable(_operations);
+class NativeCursorGetBatch {
+  NativeCursorGetBatch._(this._cursor);
+  final NativeCursor _cursor;
 
-  /// Converts the cursor to map to send it to platform.
-  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{
-        'operations': _operations,
-      });
+  final List<List<Object?>> _operations = [];
+
+  void _add(String method, [Object? argument]) {
+    _operations.add([method, argument]);
+  }
+
+  /// Commits a batch
+  Future<List<Object?>> commit() async {
+    final result = await _cursor._methodChannel
+        .invokeListMethod<Object>('commitGetBatch', {
+      'operations': _operations,
+    });
+    return result!;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getCount() {
+    _add('getCount');
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getPosition() {
+    _add('getPosition');
+    return this;
+  }
+
+  /// Will return [bool].
+  NativeCursorGetBatch isFirst() {
+    _add('isFirst');
+    return this;
+  }
+
+  /// Will return [bool].
+  NativeCursorGetBatch isLast() {
+    _add('isLast');
+    return this;
+  }
+
+  /// Will return [bool].
+  NativeCursorGetBatch isBeforeFirst() {
+    _add('isBeforeFirst');
+    return this;
+  }
+
+  /// Will return [bool].
+  NativeCursorGetBatch isAfterLast() {
+    _add('isAfterLast');
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getColumnIndex(String columnName) {
+    _add('getColumnIndex', columnName);
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getColumnIndexOrThrow(String columnName) {
+    _add('getColumnIndexOrThrow', columnName);
+    return this;
+  }
+
+  /// Will return [String].
+  NativeCursorGetBatch getColumnName(int columnIndex) {
+    _add('getColumnName', columnIndex);
+    return this;
+  }
+
+  /// Will return `List<String>`.
+  NativeCursorGetBatch getColumnNames() {
+    _add('getColumnNames');
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getColumnCount() {
+    _add('getColumnCount');
+    return this;
+  }
+
+  /// Will return [Uint8List].
+  NativeCursorGetBatch getBytes(int columnIndex) {
+    _add('getBytes', columnIndex);
+    return this;
+  }
+
+  /// Will return [String].
+  NativeCursorGetBatch getString(int columnIndex) {
+    _add('getString', columnIndex);
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getShort(int columnIndex) {
+    _add('getShort', columnIndex);
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getInt(int columnIndex) {
+    _add('getInt', columnIndex);
+    return this;
+  }
+
+  /// Will return [int].
+  NativeCursorGetBatch getLong(int columnIndex) {
+    _add('getLong', columnIndex);
+    return this;
+  }
+
+  /// Will return [double].
+  NativeCursorGetBatch getFloat(int columnIndex) {
+    _add('getFloat', columnIndex);
+    return this;
+  }
+
+  /// Will return [double].
+  NativeCursorGetBatch getDouble(int columnIndex) {
+    _add('getDouble', columnIndex);
+    return this;
+  }
+
+  /// Will return a [Type] that is one of the types listed in [NativeCursor.supportedFieldTypes].
+  NativeCursorGetBatch getType(int columnIndex) {
+    _add('getType', columnIndex);
+    return this;
+  }
+
+  /// Will return [Bool].
+  NativeCursorGetBatch isNull(int columnIndex) {
+    _add('isNull', columnIndex);
+    return this;
+  }
 }
 
 /// Builds and contains a data of a platform Cursor
@@ -710,7 +972,7 @@ class CancellationSignal extends PlatformObjectRegistryEntry {
       _cancelled = true;
       _cancelListener?.call();
       _methodChannel.setMethodCallHandler(null);
-      await _methodChannel.invokeMethod<void>('create', {'id': id});
+      await _methodChannel.invokeMethod<void>('cancel', {'id': id});
     } catch (ex) {
       // Swallow exceptions in case the channel has not been initialized yet.
     }
@@ -1195,13 +1457,13 @@ class ContentObserver extends PlatformObjectRegistryEntry {
   /// The [selfChange] will be true if this is a self-change notification.
   ///
   /// The [flags] are indicating details about this change.
-  void onChange(bool selfChange, Uri? uri, int? flags) async {}
+  void onChange(bool selfChange, Uri? uri, int? flags) {}
 
   /// Gets called when a content change occurs.
   /// Includes the changed content [uris] when available.
   ///
   /// By default calls [onChange] on all the [uris].
-  void onChangeUris(bool selfChange, List<Uri> uris, int? flags) async {
+  void onChangeUris(bool selfChange, List<Uri> uris, int? flags) {
     for (final uri in uris) {
       onChange(selfChange, uri, flags);
     }
@@ -1310,7 +1572,7 @@ class AndroidContentResolver {
   Future<int> bulkInsert(Uri uri, List<ContentValues> values) async {
     final result = await _methodChannel.invokeMethod<int>('bulkInsert', {
       'uri': uri.toString(),
-      'values': values.map((value) => value.toMap()).toList(),
+      'values': values,
     });
     return result!;
   }
@@ -1401,7 +1663,7 @@ class AndroidContentResolver {
   Future<Uri?> insert(Uri uri, ContentValues? values) async {
     final result = await _methodChannel.invokeMethod<String>('insert', {
       'uri': uri.toString(),
-      'values': values?.toMap(),
+      'values': values,
     });
     return result == null ? null : Uri.parse(result);
   }
@@ -1413,7 +1675,7 @@ class AndroidContentResolver {
     final result =
         await _methodChannel.invokeMethod<String>('insertWithExtras', {
       'uri': uri.toString(),
-      'values': values?.toMap(),
+      'values': values,
       'extras': extras,
     });
     return result == null ? null : Uri.parse(result);
@@ -1639,7 +1901,7 @@ class AndroidContentResolver {
   ) async {
     final result = await _methodChannel.invokeMethod<int>('update', {
       'uri': uri.toString(),
-      'values': values?.toMap(),
+      'values': values,
       'selection': selection,
       'selectionArgs': selectionArgs,
     });
@@ -1655,7 +1917,7 @@ class AndroidContentResolver {
   ) async {
     final result = await _methodChannel.invokeMethod<int>('updateWithExtras', {
       'uri': uri.toString(),
-      'values': values?.toMap(),
+      'values': values,
       'extras': extras,
     });
     return result!;
