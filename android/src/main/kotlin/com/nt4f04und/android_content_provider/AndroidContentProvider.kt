@@ -2,7 +2,9 @@ package com.nt4f04und.android_content_provider
 
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.database.Cursor
 import android.net.Uri
+import androidx.annotation.CallSuper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -11,7 +13,13 @@ import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.FlutterEngineGroup
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.loader.FlutterLoader
-import java.lang.IllegalStateException
+import io.flutter.plugin.common.BinaryMessenger
+import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.sendBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import java.lang.Exception
 
 /** A [ContentProvider] for [AndroidContentProviderPlugin].
  *
@@ -45,9 +53,9 @@ import java.lang.IllegalStateException
  */
 abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
     private lateinit var lifecycle: LifecycleRegistry
-    private lateinit var api: ContentProviderMessages.ContentProviderApi
     private lateinit var engine: FlutterEngine
     private lateinit var flutterLoader: FlutterLoader
+    private lateinit var methodChannel: MethodChannel
     private val createdEngines: MutableSet<String> = mutableSetOf()
 
     companion object {
@@ -65,7 +73,8 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
      * This can be used to make several [AndroidContentProvider]s run on
      * the same engine.
      */
-    val flutterEngineCacheId: String? = null
+    @SuppressWarnings("WeakerAccess")
+    protected val flutterEngineCacheId: String? = null
 
     /** Provides a [FlutterEngineGroup] to create a [FlutterEngine] this
      * [ContentProvider] will connect to
@@ -75,7 +84,8 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
      *
      * If returns null the content provider will create the engine without group.
      */
-    fun provideFlutterEngineGroup(): FlutterEngineGroup? {
+    @SuppressWarnings("WeakerAccess")
+    protected fun provideFlutterEngineGroup(): FlutterEngineGroup? {
         return null
     }
 
@@ -83,6 +93,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
         return lifecycle
     }
 
+    @CallSuper
     override fun onCreate(): Boolean {
         var cachedEngine: FlutterEngine? = null
         flutterEngineCacheId?.let {
@@ -114,14 +125,61 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
         lifecycle = LifecycleRegistry(this)
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle)
-        api = ContentProviderMessages.ContentProviderApi(engine.dartExecutor.binaryMessenger)
-        val createMessage = ContentProviderMessages.CreateMessage()
-                .also { it.authority = authority }
-        api.create(createMessage) { }
+        val plugin = engine.plugins.get(AndroidContentProviderPlugin::class.java) as AndroidContentProviderPlugin
+        plugin.methodChannel!!.invokeMethod(
+                "createContentProvider",
+                mapOf("authority" to authority),
+                object : MethodChannel.Result {
+                    override fun success(result: Any?) {
+                        methodChannel = MethodChannel(
+                                engine.dartExecutor.binaryMessenger,
+                                "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
+                                AndroidContentProviderPlugin.pluginMethodCodec,
+                                engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
+                                        BinaryMessenger.TaskQueueOptions().setIsSerial(false)))
+                    }
+
+                    override fun error(errorCode: String?, errorMessage: String?, errorDetails: Any?) {}
+                    override fun notImplemented() {}
+                })
         return true
     }
 
+    @SuppressWarnings("WeakerAccess")
+    protected fun invokeMethod(method: String, arguments: Any?) = runBlocking {
+        val resultChannel = Channel<Any?>()
+        launch {
+            methodChannel.invokeMethod(method, arguments, object : MethodChannel.Result {
+                override fun success(result: Any?) {
+                    resultChannel.sendBlocking(result)
+                }
+
+                override fun error(errorCode: String?, errorMessage: String?, errorDetails: Any?) {
+                    throw Exception(errorMessage)
+                }
+
+                override fun notImplemented() {
+                    throw IllegalStateException("Method not implemented")
+                }
+            })
+        }
+        return@runBlocking resultChannel.receive()
+    }
+
+    override fun bulkInsert(uri: Uri, values: Array<out ContentValues>): Int {
+        val result = invokeMethod("query", mapOf(
+                "uri" to uri,
+                "values" to values))
+        return super.bulkInsert(uri, values)
+    }
+
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
+        val result = invokeMethod("query", mapOf(
+                "uri" to uri,
+                "projection" to projection,
+                "selection" to selection,
+                "selectionArgs" to selectionArgs,
+                "sortOrder" to sortOrder))
         return null
     }
 

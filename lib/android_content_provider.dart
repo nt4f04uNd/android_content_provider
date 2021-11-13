@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -15,20 +16,27 @@ const _channelPrefix = 'com.nt4f04und.android_content_provider';
 ///
 /// Allows to create set a factory for [AndroidContentProvider]s.
 abstract class AndroidContentProviderPlugin {
+  AndroidContentProviderPlugin._();
+
+  static const _pluginMethodCodec =
+      StandardMethodCodec(AndroidContentProviderMessageCodec());
+
   static const _methodChannel = MethodChannel('$_channelPrefix/plugin');
 
   static late final StreamController<String> _onCreateStreamController =
       StreamController();
 
   static Future<void> _handleMethodCall(MethodCall call) async {
+    final BundleMap? args = (call.arguments as Map?)?.cast<String, Object?>();
     switch (call.method) {
       case 'createContentProvider':
-        _onCreateStreamController.add(call.method);
+        _onCreateStreamController.add(args!['authority']! as String);
         break;
       default:
         throw PlatformException(
-            code: 'unimplemented',
-            message: 'Method not implemented: ${call.method}');
+          code: 'unimplemented',
+          message: 'Method not implemented: ${call.method}',
+        );
     }
   }
 
@@ -40,7 +48,8 @@ abstract class AndroidContentProviderPlugin {
   static void setUp({required AndroidContentProviderFactory factory}) {
     WidgetsFlutterBinding.ensureInitialized();
     if (_onCreateStreamController.hasListener) {
-      throw StateError("AndroidContentProviderPlugin has already been set up for this engine");
+      throw StateError(
+          "AndroidContentProviderPlugin has already been set up for this engine");
     }
     _onCreateStreamController.stream.listen(factory);
     _methodChannel.setMethodCallHandler(_handleMethodCall);
@@ -68,7 +77,7 @@ class _Native {
 typedef BundleMap = Map<String, Object?>;
 
 /// Opaque token representing the identity of an incoming IPC.
-class CallingIdentity extends PlatformObjectRegistryEntry {
+class CallingIdentity extends Interoperable {
   /// Creates native cursor from an existing ID.
   @internal
   CallingIdentity.fromId(String id) : super.fromId(id);
@@ -379,13 +388,26 @@ class _Float extends _NumberWrapper<double> {
 //
 
 /// The codec utilized to encode data back and forth between
-/// the Dart application and the native platform.
+/// the Dart and the native platform.
+///
+/// Extends the default Flutter [StandartMessageCodec], adding
+/// a support for these classes:
+///
+///  * [Uri]
+///  * [Bundle] - when sending from native, converts it to. Sending from Dart is not allowed
+///  * [ContentValues] - also treats all numeric types like Byte, Short, etc. literally, converting
+///    them into native counterparts
 class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   /// Creates the codec.
   const AndroidContentProviderMessageCodec();
 
+  static const int _kUri = 134;
+  // Bundle is only sent from native.
+  // From dart it's easier to just send the Map<String, Object?>
+  static const int _kBundle = 133;
   static const int _kContentValues = 132;
-  // Java types that need to be supported in the ContentValues
+
+  // Java types that need to be supported in the ContentValues:
   static const int _kByte = 128;
   static const int _kShort = 129;
   // value copied from the [StandardMessageCodec._valueInt32]
@@ -398,7 +420,14 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
-    if (value is ContentValues) {
+    if (value is Uri) {
+      buffer.putUint8(_kUri);
+      final Uint8List bytes = utf8.encoder.convert(value.toString());
+      writeSize(buffer, bytes.length);
+      buffer.putUint8List(bytes);
+    }
+    // skip _kBundle
+    else if (value is ContentValues) {
       buffer.putUint8(_kContentValues);
       writeSize(buffer, value.length);
       value._map.forEach((Object? key, Object? value) {
@@ -433,6 +462,16 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
+      case _kUri:
+        final int length = readSize(buffer);
+        return Uri.parse(utf8.decoder.convert(buffer.getUint8List(length)));
+      case _kBundle:
+        final int length = readSize(buffer);
+        final Map<String, Object?> result = <String, Object?>{};
+        for (int i = 0; i < length; i++) {
+          result[readValue(buffer) as String] = readValue(buffer);
+        }
+        return result;
       case _kContentValues:
         final int length = readSize(buffer);
         final Map<String, Object?> result = <String, Object?>{};
@@ -466,14 +505,17 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 ///
 /// See also:
 ///  * [MatrixCursorData], which is a class, returned from [AndroidContentProvider.query].
-class NativeCursor extends PlatformObjectRegistryEntry {
+class NativeCursor extends Interoperable {
   /// Creates native cursor.
   NativeCursor() : this.fromId(_uuid.v4());
 
   /// Creates native cursor from an existing ID.
   @internal
   NativeCursor.fromId(String id)
-      : _methodChannel = MethodChannel('$_channelPrefix/Cursor/$id'),
+      : _methodChannel = MethodChannel(
+          '$_channelPrefix/Cursor/$id',
+          AndroidContentProviderPlugin._pluginMethodCodec,
+        ),
         super.fromId(id);
 
   /// Supported types in Android SQLite.
@@ -569,26 +611,22 @@ class NativeCursor extends PlatformObjectRegistryEntry {
 
   Future<void> setNotificationUri(Uri uri) {
     return _methodChannel.invokeMethod<bool>('setNotificationUri', {
-      'uri': uri.toString(),
+      'uri': uri,
     });
   }
 
   Future<void> setNotificationUris(List<Uri> uris) {
     return _methodChannel.invokeMethod<bool>('setNotificationUris', {
-      'uris': uris.map((uri) => uri.toString()).toList(),
+      'uris': uris,
     });
   }
 
-  Future<Uri?> getNotificationUri() async {
-    final result =
-        await _methodChannel.invokeMethod<String>('getNotificationUri');
-    return result == null ? null : Uri.parse(result);
+  Future<Uri?> getNotificationUri() {
+    return _methodChannel.invokeMethod<Uri>('getNotificationUri');
   }
 
-  Future<List<Uri>?> getNotificationUris() async {
-    final result =
-        await _methodChannel.invokeListMethod<String>('getNotificationUris');
-    return result?.map((uri) => Uri.parse(uri)).toList();
+  Future<List<Uri>?> getNotificationUris() {
+    return _methodChannel.invokeListMethod<Uri>('getNotificationUris');
   }
 
   Future<void> setExtras(BundleMap extras) {
@@ -783,11 +821,12 @@ class NativeCursorGetBatch {
 /// and return this native Cursor from content provider.
 ///
 /// Returned from [AndroidContentProvider.query].
+///
+/// See also:
+///  * [MatrixCursorData], which is a cursor data implementation backed by an array of [Object]s
 abstract class CursorData {
   /// Creates cursor data.
-  CursorData({
-    required this.notificationUris,
-  });
+  CursorData({required this.notificationUris});
 
   /// Actual payload data.
   Object? get payload;
@@ -870,10 +909,12 @@ class MatrixCursorData extends CursorData {
   }
 }
 
-/// Android's MatrixCursor.RowBuilder
-/// https://developer.android.com/reference/android/database/MatrixCursor.RowBuilder
+/// A row builder for [MatrixCursorData].
 ///
 /// Undefined values are left as null.
+///
+/// A counterpart of MatrixCursor.RowBuilder
+/// https://developer.android.com/reference/android/database/MatrixCursor.RowBuilder
 class MatrixCursorDataRowBuilder {
   MatrixCursorDataRowBuilder._(int row, this._cursorData)
       : _index = row * _cursorData._columnCount {
@@ -910,25 +951,23 @@ class CursorRangeError extends RangeError {
   CursorRangeError(String message) : super(message);
 }
 
-/// An entry in the platform object registry.
-///
-/// The platform registry object is a mechanism to keep track of native objects associated with
-/// their respective counterparts within dart.
-abstract class PlatformObjectRegistryEntry {
+/// An object that can be associated with some native counterpart instance.
+abstract class Interoperable {
   /// Creates an object with UUID v4 [id].
   ///
-  /// Used to create an object and send it to the platform.
-  PlatformObjectRegistryEntry() : id = _uuid.v4();
+  /// Used to create an object and send it to the platform to create a native instance.
+  Interoperable() : id = _uuid.v4();
 
   /// Creates an object from an existing ID.
   ///
-  /// Used when the platform has created an object and it needs a dart counterpart.
+  /// The of opposite [Interoperable.new].
+  /// Used when the platform creats an object and needs a dart counterpart.
   ///
   /// Marked as internal because it's generally not what an API user should use.
   /// However, it could be useful for custom implementations of [NativeCursor]
   /// or [AndroidContentProvider] (i.e. those using `implements`).
   @internal
-  const PlatformObjectRegistryEntry.fromId(this.id);
+  const Interoperable.fromId(this.id);
 
   /// An ID of an object.
   ///
@@ -937,7 +976,7 @@ abstract class PlatformObjectRegistryEntry {
 
   @override
   bool operator ==(Object other) {
-    return other is PlatformObjectRegistryEntry && other.id == id;
+    return other is Interoperable && other.id == id;
   }
 
   @override
@@ -946,7 +985,7 @@ abstract class PlatformObjectRegistryEntry {
 
 /// Provides the ability to cancel an operation in progress
 /// https://developer.android.com/reference/android/os/CancellationSignal
-class CancellationSignal extends PlatformObjectRegistryEntry {
+class CancellationSignal extends Interoperable {
   /// Creates cancellation signal.
   CancellationSignal() : this.fromId(_uuid.v4());
 
@@ -1012,8 +1051,9 @@ class CancellationSignal extends PlatformObjectRegistryEntry {
         break;
       default:
         throw PlatformException(
-            code: 'unimplemented',
-            message: 'Method not implemented: ${call.method}');
+          code: 'unimplemented',
+          message: 'Method not implemented: ${call.method}',
+        );
     }
   }
 }
@@ -1038,12 +1078,13 @@ class CancellationSignal extends PlatformObjectRegistryEntry {
 abstract class AndroidContentProvider {
   /// Creates a communication interface with native Android ContentProvider.
   AndroidContentProvider(this.authority)
-      : _methodChannel =
-            MethodChannel('$_channelPrefix/ContentProvider/$authority') {
+      : _methodChannel = MethodChannel(
+            '$_channelPrefix/ContentProvider/$authority',
+            AndroidContentProviderPlugin._pluginMethodCodec) {
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 
-  /// ContentProvider authority.
+  /// ContentProvider's authority.
   ///
   /// Received from platform in [AndroidContentProviderPlugin.setup] listener.
   final String authority;
@@ -1054,16 +1095,30 @@ abstract class AndroidContentProvider {
     final BundleMap? args =
         (methodCall.arguments as Map?)?.cast<String, Object?>();
     switch (methodCall.method) {
+      case 'bulkInsert':
+        return bulkInsert(
+          args!['uri'] as Uri,
+          args['values'] as List<ContentValues>,
+        );
       case 'call':
         return call(
           args!['method'] as String,
           args['arg'] as String?,
           args['extras'] as BundleMap?,
         );
+      case 'query':
+        return query(
+          args!['uri'] as Uri,
+          args['projection'] as List<String>?,
+          args['selection'] as String?,
+          args['selectionArgs'] as List<String>?,
+          args['sortOrder'] as String?,
+        );
       default:
         throw PlatformException(
-            code: 'unimplemented',
-            message: 'Method not implemented: ${methodCall.method}');
+          code: 'unimplemented',
+          message: 'Method not implemented: ${methodCall.method}',
+        );
     }
   }
 
@@ -1428,11 +1483,14 @@ class MimeTypeInfo {
 
 /// Receives call backs for changes to content
 /// https://developer.android.com/reference/android/database/ContentObserver
-class ContentObserver extends PlatformObjectRegistryEntry {
+abstract class ContentObserver extends Interoperable {
   /// Creates content observer.
   ContentObserver() : this._(_uuid.v4());
   ContentObserver._(this._id)
-      : _methodChannel = MethodChannel('$_channelPrefix/ContentObserver/$_id') {
+      : _methodChannel = MethodChannel(
+          '$_channelPrefix/ContentObserver/$_id',
+          AndroidContentProviderPlugin._pluginMethodCodec,
+        ) {
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 
@@ -1446,26 +1504,25 @@ class ContentObserver extends PlatformObjectRegistryEntry {
     final BundleMap? args =
         (methodCall.arguments as Map?)?.cast<String, Object?>();
     switch (methodCall.method) {
-      case 'deliverSelfNotifications':
-        return deliverSelfNotifications;
       case 'onChange':
-        final uri = args!['uri'] as String?;
+        final uri = args!['uri'] as Uri?;
         return onChange(
           args['selfChange'] as bool,
-          uri == null ? null : Uri.parse(uri),
+          uri,
           args['flags'] as int?,
         );
       case 'onChangeUris':
-        final uris = (args!['uris'] as List).cast<String>();
+        final uris = args!['uris'] as List<Uri>;
         return onChangeUris(
           args['selfChange'] as bool,
-          uris.map((uri) => Uri.parse(uri)).toList(),
+          uris,
           args['flags'] as int?,
         );
       default:
         throw PlatformException(
-            code: 'unimplemented',
-            message: 'Method not implemented: ${methodCall.method}');
+          code: 'unimplemented',
+          message: 'Method not implemented: ${methodCall.method}',
+        );
     }
   }
 
@@ -1473,13 +1530,6 @@ class ContentObserver extends PlatformObjectRegistryEntry {
   String toString() {
     return '${objectRuntimeType(this, 'ContentObserver')}($id)';
   }
-
-  /// Whether this observer is interested receiving self-change notifications.
-  ///
-  /// Subclasses should override this method to indicate whether the observer
-  /// is interested in receiving notifications for changes that it made to the
-  /// content itself.
-  bool get deliverSelfNotifications => false;
 
   /// Gets called when a content change occurs.
   /// Includes the changed content [uri] when available.
@@ -1512,32 +1562,31 @@ class ContentObserver extends PlatformObjectRegistryEntry {
 
 /// Receives call backs when a data set has been changed, or made invalid.
 /// https://developer.android.com/reference/android/database/DataSetObserver
-class DataSetObserver extends PlatformObjectRegistryEntry {
+abstract class DataSetObserver extends Interoperable {
   /// Creates content observer.
   DataSetObserver() : this._(_uuid.v4());
   DataSetObserver._(this._id)
-      : _methodChannel = MethodChannel('$_channelPrefix/DataSetObserver/$_id') {
-    _methodChannel.setMethodCallHandler(_handleMethodCall);
+      : _eventChannel = EventChannel('$_channelPrefix/DataSetObserver/$_id') {
+    _eventChannel.receiveBroadcastStream().listen(_handleEvent);
   }
 
   @override
   String get id => _id;
   final String _id;
 
-  final MethodChannel _methodChannel;
+  final EventChannel _eventChannel;
 
-  Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
-    final BundleMap? args =
-        (methodCall.arguments as Map?)?.cast<String, Object?>();
-    switch (methodCall.method) {
+  void _handleEvent(Object? event) async {
+    switch (event) {
       case 'onChanged':
         return onChanged();
       case 'onInvalidated':
         return onInvalidated();
       default:
         throw PlatformException(
-            code: 'unimplemented',
-            message: 'Method not implemented: ${methodCall.method}');
+          code: 'unimplemented',
+          message: 'Invalid event: $event',
+        );
     }
   }
 
@@ -1570,8 +1619,9 @@ class AndroidContentResolver {
   /// all of them will ultimately call the same method channel.
   static const instance = AndroidContentResolver();
 
-  static const MethodChannel _methodChannel =
-      MethodChannel('$_channelPrefix/ContentResolver');
+  static const MethodChannel _methodChannel = MethodChannel(
+      '$_channelPrefix/ContentResolver',
+      AndroidContentProviderPlugin._pluginMethodCodec);
 
   // acquireContentProviderClient(uri: Uri): ContentProviderClient?
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquirecontentproviderclient
@@ -1608,7 +1658,7 @@ class AndroidContentResolver {
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#bulkinsert
   Future<int> bulkInsert(Uri uri, List<ContentValues> values) async {
     final result = await _methodChannel.invokeMethod<int>('bulkInsert', {
-      'uri': uri.toString(),
+      'uri': uri,
       'values': values,
     });
     return result!;
@@ -1616,8 +1666,10 @@ class AndroidContentResolver {
 
   /// call(uri: Uri, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call
-  Future<BundleMap?> call(String method, String? arg, BundleMap? extras) {
+  Future<BundleMap?> call(
+      Uri uri, String method, String? arg, BundleMap? extras) {
     return _methodChannel.invokeMapMethod<String, Object?>('call', {
+      'uri': uri,
       'method': method,
       'arg': arg,
       'extras': extras,
@@ -1639,11 +1691,10 @@ class AndroidContentResolver {
 
   /// canonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#canonicalize
-  Future<Uri?> canonicalize(Uri url) async {
-    final result = await _methodChannel.invokeMethod<String>('canonicalize', {
-      'url': url.toString(),
+  Future<Uri?> canonicalize(Uri url) {
+    return _methodChannel.invokeMethod<Uri>('canonicalize', {
+      'url': url,
     });
-    return result == null ? null : Uri.parse(result);
   }
 
   /// delete(uri: Uri, arg: String?, selectionArgs: Array<String!>?): Int
@@ -1651,7 +1702,7 @@ class AndroidContentResolver {
   Future<int> delete(
       Uri uri, String? selection, List<String>? selectionArgs) async {
     final result = await _methodChannel.invokeMethod<int>('delete', {
-      'uri': uri.toString(),
+      'uri': uri,
       'selection': selection,
       'selectionArgs': selectionArgs,
     });
@@ -1662,7 +1713,7 @@ class AndroidContentResolver {
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete_1
   Future<int> deleteWithExtras(Uri uri, BundleMap? extras) async {
     final result = await _methodChannel.invokeMethod<int>('deleteWithExtras', {
-      'uri': uri.toString(),
+      'uri': uri,
       'extras': extras,
     });
     return result!;
@@ -1672,7 +1723,7 @@ class AndroidContentResolver {
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getstreamtypes
   Future<List<String>?> getStreamTypes(Uri uri, String mimeTypeFilter) {
     return _methodChannel.invokeListMethod<String>('getStreamTypes', {
-      'uri': uri.toString(),
+      'uri': uri,
       'mimeTypeFilter': mimeTypeFilter,
     });
   }
@@ -1681,7 +1732,7 @@ class AndroidContentResolver {
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettype
   Future<String?> getType(Uri uri) {
     return _methodChannel.invokeMethod<String>('getType', {
-      'uri': uri.toString(),
+      'uri': uri,
     });
   }
 
@@ -1697,34 +1748,31 @@ class AndroidContentResolver {
 
   /// insert(uri: Uri, values: ContentValues?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert
-  Future<Uri?> insert(Uri uri, ContentValues? values) async {
-    final result = await _methodChannel.invokeMethod<String>('insert', {
-      'uri': uri.toString(),
+  Future<Uri?> insert(Uri uri, ContentValues? values) {
+    return _methodChannel.invokeMethod<Uri>('insert', {
+      'uri': uri,
       'values': values,
     });
-    return result == null ? null : Uri.parse(result);
   }
 
   /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert_1
   Future<Uri?> insertWithExtras(
-      Uri uri, ContentValues? values, BundleMap? extras) async {
-    final result =
-        await _methodChannel.invokeMethod<String>('insertWithExtras', {
-      'uri': uri.toString(),
+      Uri uri, ContentValues? values, BundleMap? extras) {
+    return _methodChannel.invokeMethod<Uri>('insertWithExtras', {
+      'uri': uri,
       'values': values,
       'extras': extras,
     });
-    return result == null ? null : Uri.parse(result);
   }
 
   /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
-  Future<Uint8List> loadThumbnail(Uri uri, int width, int height,
+  Future<Uint8List?> loadThumbnail(Uri uri, int width, int height,
       CancellationSignal? cancellationSignal) async {
     final result =
         await _methodChannel.invokeMethod<Uint8List>('loadThumbnail', {
-      'uri': uri.toString(),
+      'uri': uri,
       'width': width,
       'height': height,
       'cancellationSignal': cancellationSignal?.id,
@@ -1734,10 +1782,18 @@ class AndroidContentResolver {
 
   /// notifyChange(uri: Uri, observer: ContentObserver?): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange
-  Future<void> notifyChange(Uri uri, ContentObserver? observer) {
+  ///
+  /// notifyChange(uri: Uri, observer: ContentObserver?, flags: Int): Unit
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_2
+  Future<void> notifyChange(
+    Uri uri,
+    ContentObserver? observer, [
+    int? flags,
+  ]) {
     return _methodChannel.invokeMethod<void>('notifyChange', {
-      'uri': uri.toString(),
+      'uri': uri,
       'observer': observer?.id,
+      'flags': flags,
     });
   }
 
@@ -1748,20 +1804,6 @@ class AndroidContentResolver {
   //
   //
 
-  /// notifyChange(uri: Uri, observer: ContentObserver?, flags: Int): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_2
-  Future<void> notifyChangeWithFlags(
-    Uri uri,
-    ContentObserver? observer,
-    int flags,
-  ) {
-    return _methodChannel.invokeMethod<void>('notifyChangeWithFlags', {
-      'uri': uri.toString(),
-      'observer': observer?.id,
-      'flags': flags,
-    });
-  }
-
   /// notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_3
   Future<void> notifyChangeWithList(
@@ -1770,7 +1812,7 @@ class AndroidContentResolver {
     int flags,
   ) {
     return _methodChannel.invokeMethod<void>('notifyChangeWithList', {
-      'uris': uris.map((uri) => uri.toString()).toList(),
+      'uris': uris,
       'observer': observer?.id,
       'flags': flags,
     });
@@ -1826,7 +1868,7 @@ class AndroidContentResolver {
     String? sortOrder,
   ) async {
     final result = await _methodChannel.invokeMethod<String>('query', {
-      'uri': uri.toString(),
+      'uri': uri,
       'projection': projection,
       'selection': selection,
       'selectionArgs': selectionArgs,
@@ -1845,9 +1887,8 @@ class AndroidContentResolver {
     String? sortOrder,
     CancellationSignal? cancellationSignal,
   ) async {
-    final result =
-        await _methodChannel.invokeMethod<String>('queryWithSignal', {
-      'uri': uri.toString(),
+    final result = await _methodChannel.invokeMethod<String>('query', {
+      'uri': uri,
       'projection': projection,
       'selection': selection,
       'selectionArgs': selectionArgs,
@@ -1867,7 +1908,7 @@ class AndroidContentResolver {
   ) async {
     final result =
         await _methodChannel.invokeMethod<String>('queryWithBundle', {
-      'uri': uri.toString(),
+      'uri': uri,
       'projection': projection,
       'queryArgs': queryArgs,
       'cancellationSignal': cancellationSignal?.id,
@@ -1883,7 +1924,7 @@ class AndroidContentResolver {
     CancellationSignal? cancellationSignal,
   ) async {
     final result = await _methodChannel.invokeMethod<bool>('refresh', {
-      'uri': uri.toString(),
+      'uri': uri,
       'extras': extras,
       'cancellationSignal': cancellationSignal?.id,
     });
@@ -1898,7 +1939,7 @@ class AndroidContentResolver {
     ContentObserver observer,
   ) {
     return _methodChannel.invokeMethod<void>('registerContentObserver', {
-      'uri': uri.toString(),
+      'uri': uri,
       'notifyForDescendants': notifyForDescendants,
       'observer': observer.id,
     });
@@ -1913,11 +1954,10 @@ class AndroidContentResolver {
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#uncanonicalize
-  Future<Uri?> uncanonicalize(Uri url) async {
-    final result = await _methodChannel.invokeMethod<String>('uncanonicalize', {
-      'url': url.toString(),
+  Future<Uri?> uncanonicalize(Uri url) {
+    return _methodChannel.invokeMethod<Uri>('uncanonicalize', {
+      'url': url,
     });
-    return result == null ? null : Uri.parse(result);
   }
 
   /// unregisterContentObserver(observer: ContentObserver): Unit
@@ -1937,7 +1977,7 @@ class AndroidContentResolver {
     List<String>? selectionArgs,
   ) async {
     final result = await _methodChannel.invokeMethod<int>('update', {
-      'uri': uri.toString(),
+      'uri': uri,
       'values': values,
       'selection': selection,
       'selectionArgs': selectionArgs,
@@ -1953,7 +1993,7 @@ class AndroidContentResolver {
     BundleMap? extras,
   ) async {
     final result = await _methodChannel.invokeMethod<int>('updateWithExtras', {
-      'uri': uri.toString(),
+      'uri': uri,
       'values': values,
       'extras': extras,
     });
