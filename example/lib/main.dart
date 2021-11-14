@@ -9,8 +9,7 @@ void main() async {
   // final  test =  await c.bulkInsert(uri, ContentValues());
   // print(test)
   final cursor = await c.query(
-    Uri.parse(
-        'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider'),
+    'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider',
     null,
     null,
     null,
@@ -53,7 +52,7 @@ class Test extends AndroidContentProvider {
   Test(String authority) : super(authority);
 
   @override
-  Future<int> bulkInsert(Uri uri, List<ContentValues> values) {
+  Future<int> bulkInsert(String uri, List<ContentValues> values) {
     // TODO: implement bulkInsert
     throw UnimplementedError();
   }
@@ -72,19 +71,20 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<Uri?> canonicalize(Uri url) {
+  Future<String?> canonicalize(String url) {
     // TODO: implement canonicalize
     throw UnimplementedError();
   }
 
   @override
-  Future<int> delete(Uri uri, String? selection, List<String>? selectionArgs) {
+  Future<int> delete(
+      String uri, String? selection, List<String>? selectionArgs) {
     // TODO: implement delete
     throw UnimplementedError();
   }
 
   @override
-  Future<int> deleteWithExtras(Uri uri, BundleMap? extras) {
+  Future<int> deleteWithExtras(String uri, BundleMap? extras) {
     // TODO: implement deleteWithExtras
     throw UnimplementedError();
   }
@@ -108,13 +108,13 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<List<String>?> getStreamTypes(Uri uri, String mimeTypeFilter) {
+  Future<List<String>?> getStreamTypes(String uri, String mimeTypeFilter) {
     // TODO: implement getStreamTypes
     throw UnimplementedError();
   }
 
   @override
-  Future<String?> getType(Uri uri) {
+  Future<String?> getType(String uri) {
     // TODO: implement getType
     throw UnimplementedError();
   }
@@ -126,14 +126,14 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<Uri?> insert(Uri uri, ContentValues? values) {
+  Future<String?> insert(String uri, ContentValues? values) {
     // TODO: implement insert
     throw UnimplementedError();
   }
 
   @override
-  Future<Uri?> insertWithExtras(
-      Uri uri, ContentValues? values, BundleMap? extras) {
+  Future<String?> insertWithExtras(
+      String uri, ContentValues? values, BundleMap? extras) {
     // TODO: implement insertWithExtras
     throw UnimplementedError();
   }
@@ -151,27 +151,27 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<Uri> openFile(Uri uri, String mode) {
+  Future<String> openFile(String uri, String mode) {
     // TODO: implement openFile
     throw UnimplementedError();
   }
 
   @override
-  Future<Uri> openFileWithSignal(
-      Uri uri, String mode, CancellationSignal cancellationSignal) {
+  Future<String> openFileWithSignal(
+      String uri, String mode, CancellationSignal cancellationSignal) {
     // TODO: implement openFileWithSignal
     throw UnimplementedError();
   }
 
   @override
-  Future<CursorData> query(Uri uri, List<String>? projection, String? selection,
-      List<String>? selectionArgs, String? sortOrder) async {
+  Future<CursorData> query(String uri, List<String>? projection,
+      String? selection, List<String>? selectionArgs, String? sortOrder) async {
     print('query');
     return MatrixCursorData(columnNames: ['test'], notificationUris: null);
   }
 
   @override
-  Future<CursorData> queryWithBundle(Uri uri, List<String>? projection,
+  Future<CursorData> queryWithBundle(String uri, List<String>? projection,
       BundleMap? queryArgs, CancellationSignal? cancellationSignal) {
     // TODO: implement queryWithBundle
     throw UnimplementedError();
@@ -179,7 +179,7 @@ class Test extends AndroidContentProvider {
 
   @override
   Future<CursorData> queryWithSignal(
-      Uri uri,
+      String uri,
       List<String>? projection,
       String? selection,
       List<String>? selectionArgs,
@@ -190,8 +190,8 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<bool> refresh(
-      Uri uri, BundleMap? extras, CancellationSignal? cancellationSignal) {
+  Future<bool> refresh(String uri, BundleMap? extras,
+      CancellationSignal? cancellationSignal) {
     // TODO: implement refresh
     throw UnimplementedError();
   }
@@ -209,13 +209,13 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<Uri?> uncanonicalize(Uri url) {
+  Future<String?> uncanonicalize(String url) {
     // TODO: implement uncanonicalize
     throw UnimplementedError();
   }
 
   @override
-  Future<int> update(Uri uri, ContentValues? values, String? selection,
+  Future<int> update(String uri, ContentValues? values, String? selection,
       List<String>? selectionArgs) {
     // TODO: implement update
     throw UnimplementedError();
@@ -223,7 +223,7 @@ class Test extends AndroidContentProvider {
 
   @override
   Future<int> updateWithExtras(
-      Uri uri, ContentValues? values, BundleMap? extras) {
+      String uri, ContentValues? values, BundleMap? extras) {
     // TODO: implement updateWithExtras
     throw UnimplementedError();
   }

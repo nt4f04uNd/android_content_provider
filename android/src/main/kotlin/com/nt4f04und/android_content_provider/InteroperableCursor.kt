@@ -81,12 +81,12 @@ class InteroperableCursor(
                     result.success(null)
                 }
                 "setNotificationUri" -> {
-                    cursor.setNotificationUri(contentResolver, args!!["uri"] as Uri)
+                    cursor.setNotificationUri(contentResolver, getUri(args!!["uri"]))
                     result.success(null)
                 }
                 "setNotificationUris" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        cursor.setNotificationUris(contentResolver, args!!["uris"] as ArrayList<Uri>)
+                        cursor.setNotificationUris(contentResolver, getUris(args!!["uris"]))
                         result.success(null)
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.Q)

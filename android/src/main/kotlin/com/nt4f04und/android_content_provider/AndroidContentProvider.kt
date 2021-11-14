@@ -4,6 +4,8 @@ import android.content.ContentProvider
 import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import androidx.annotation.CallSuper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -15,11 +17,7 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.sendBlocking
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import java.lang.Exception
+import kotlinx.coroutines.*
 
 /** A [ContentProvider] for [AndroidContentProviderPlugin].
  *
@@ -55,6 +53,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
     private lateinit var lifecycle: LifecycleRegistry
     private lateinit var engine: FlutterEngine
     private lateinit var flutterLoader: FlutterLoader
+    private lateinit var handler: Handler
     private lateinit var methodChannel: MethodChannel
     private val createdEngines: MutableSet<String> = mutableSetOf()
 
@@ -125,6 +124,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
         lifecycle = LifecycleRegistry(this)
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle)
+        handler = Handler(Looper.getMainLooper())
         val plugin = engine.plugins.get(AndroidContentProviderPlugin::class.java) as AndroidContentProviderPlugin
         plugin.methodChannel!!.invokeMethod(
                 "createContentProvider",
@@ -146,25 +146,30 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
     }
 
     @SuppressWarnings("WeakerAccess")
-    protected fun invokeMethod(method: String, arguments: Any?) = runBlocking {
-        val resultChannel = Channel<Any?>()
-        launch {
-            methodChannel.invokeMethod(method, arguments, object : MethodChannel.Result {
+    protected fun invokeMethod(method: String, arguments: Any?): Any? {
+        val deferred = CompletableDeferred<Any?>()
+        CoroutineScope(Dispatchers.Main).launch {
+            methodChannel.invokeMethod("name", arguments, object : MethodChannel.Result {
                 override fun success(result: Any?) {
-                    resultChannel.sendBlocking(result)
+                    deferred.complete(result)
                 }
 
-                override fun error(errorCode: String?, errorMessage: String?, errorDetails: Any?) {
-                    throw Exception(errorMessage)
+                override fun error(code: String?, msg: String?, details: Any?) {
+                    deferred.complete(null)
                 }
 
                 override fun notImplemented() {
-                    throw IllegalStateException("Method not implemented")
+                    deferred.complete(null)
                 }
             })
         }
-        return@runBlocking resultChannel.receive()
+        return runBlocking {
+            val res = deferred.await()
+            println("RETURNED")
+            return@runBlocking res
+        }
     }
+
 
     override fun bulkInsert(uri: Uri, values: Array<out ContentValues>): Int {
         val result = invokeMethod("query", mapOf(
@@ -174,6 +179,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
     }
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
+        println("ANOTHER QUERY")
         val result = invokeMethod("query", mapOf(
                 "uri" to uri,
                 "projection" to projection,

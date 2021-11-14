@@ -9,6 +9,12 @@ import java.lang.reflect.Field
 import java.nio.ByteBuffer
 import java.util.*
 
+/**
+ * The codec utilized to encode data back and forth between
+ * the Dart and the native platform.
+ *
+ * See Dart's `AndroidContentProviderMessageCodec` for more details.
+ */
 class AndroidContentProviderMessageCodec : StandardMessageCodec() {
     companion object {
         val INSTANCE: AndroidContentProviderMessageCodec = AndroidContentProviderMessageCodec()
@@ -97,7 +103,7 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
     override fun readValueOfType(type: Byte, buffer: ByteBuffer?): Any? {
         when (type) {
             URI.toByte() -> {
-                return Uri.parse(String(readBytes(buffer)))
+                throw IllegalArgumentException("Uri byte should not be sent to native, use regular String instead")
             }
             BUNDLE.toByte() -> {
                 throw IllegalArgumentException("Bundle byte should not be sent to native, use regular map instead")
