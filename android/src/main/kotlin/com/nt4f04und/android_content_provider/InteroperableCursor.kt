@@ -2,7 +2,6 @@ package com.nt4f04und.android_content_provider
 
 import android.content.ContentResolver
 import android.database.Cursor
-import android.net.Uri
 import android.os.Build
 import io.flutter.plugin.common.BinaryMessenger
 import java.lang.IllegalArgumentException
@@ -27,7 +26,7 @@ class InteroperableCursor(
     init {
         @Suppress("UNCHECKED_CAST")
         methodChannel!!.setMethodCallHandler { call, result ->
-            val args = call.arguments as Map<String, Any>?
+            val args = call.arguments as Map<String, Any?>?
             when (call.method) {
                 "close" -> {
                     cursor.close()
@@ -86,7 +85,7 @@ class InteroperableCursor(
                 }
                 "setNotificationUris" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        cursor.setNotificationUris(contentResolver, getUris(args!!["uris"]))
+                        cursor.setNotificationUris(contentResolver, getUris(args!!["uris"])!!)
                         result.success(null)
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.Q)
@@ -101,7 +100,7 @@ class InteroperableCursor(
                 }
                 "setExtras" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        cursor.extras = mapToBundle(args!!["extras"] as Map<String, Any>)
+                        cursor.extras = mapToBundle(asMap(args!!["extras"]))
                         result.success(null)
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.M)
@@ -111,7 +110,7 @@ class InteroperableCursor(
                     result.success(cursor.extras)
                 }
                 "respond" -> {
-                    result.success(cursor.respond(mapToBundle(args!!["extras"] as Map<String, Any>)))
+                    result.success(cursor.respond(mapToBundle(asMap(args!!["extras"]))))
                 }
                 "commitGetBatch" -> {
                     val resultList = mutableListOf<Any>()
@@ -137,6 +136,7 @@ class InteroperableCursor(
                             "getColumnNames" -> cursor.columnNames
                             "getColumnCount" -> cursor.columnCount
                             "getBytes" -> cursor.getBlob(getLong(argument)!!.toInt())
+                            "getString" -> cursor.getString(getLong(argument)!!.toInt())
                             "getShort" -> cursor.getShort(getLong(argument)!!.toInt())
                             "getInt" -> cursor.getInt(getLong(argument)!!.toInt())
                             "getLong" -> cursor.getLong(getLong(argument)!!.toInt())

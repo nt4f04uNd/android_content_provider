@@ -58,7 +58,7 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
                 stream!!.write(CONTENT_VALUES)
                 writeSize(stream, value.size())
                 @Suppress("UNCHECKED_CAST")
-                val map = getContentValuesMapField(value).get(value) as Map<String, Any>
+                val map = getContentValuesMapField(value).get(value) as Map<String, Any?>
                 map.forEach { (key, value) ->
                     writeValue(stream, key);
                     when (value) {
@@ -89,13 +89,24 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
                             writeDouble(stream, value.toDouble());
                         }
                         else -> {
-                            writeValue(stream, value);
+                            writeValue(stream, value)
                         }
                     }
                 }
             }
             else -> {
-                super.writeValue(stream, value)
+                try {
+                    // allow write standard writeValue to do its work,
+                    // including the conversion of int[], long[], etc.
+                    super.writeValue(stream, value)
+                } catch (e: IllegalArgumentException) {
+                    when (value) {
+                        // convert array unsupported in standard writeValue to list
+                        is Array<*> -> writeValue(stream, value.toList())
+                        // otherwise rethrow
+                        else -> throw e
+                    }
+                }
             }
         }
     }

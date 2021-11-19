@@ -17,7 +17,6 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
-import kotlinx.coroutines.*
 
 /** A [ContentProvider] for [AndroidContentProviderPlugin].
  *
@@ -49,12 +48,12 @@ import kotlinx.coroutines.*
  *     also likely lead to system killing the process.
  *
  */
-abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
+abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
     private lateinit var lifecycle: LifecycleRegistry
     private lateinit var engine: FlutterEngine
     private lateinit var flutterLoader: FlutterLoader
     private lateinit var handler: Handler
-    private lateinit var methodChannel: MethodChannel
+    private var methodChannel: SynchronousMethodChannel? = null
     private val createdEngines: MutableSet<String> = mutableSetOf()
 
     companion object {
@@ -131,45 +130,32 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
                 mapOf("authority" to authority),
                 object : MethodChannel.Result {
                     override fun success(result: Any?) {
-                        methodChannel = MethodChannel(
-                                engine.dartExecutor.binaryMessenger,
-                                "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
-                                AndroidContentProviderPlugin.pluginMethodCodec,
-                                engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
-                                        BinaryMessenger.TaskQueueOptions().setIsSerial(false)))
+                        ensureMethodChannelInitialized()
                     }
 
                     override fun error(errorCode: String?, errorMessage: String?, errorDetails: Any?) {}
                     override fun notImplemented() {}
                 })
+
         return true
+    }
+
+    private fun ensureMethodChannelInitialized() {
+        if (methodChannel == null) {
+            methodChannel = SynchronousMethodChannel(MethodChannel(
+                    engine.dartExecutor.binaryMessenger,
+                    "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
+                    AndroidContentProviderPlugin.pluginMethodCodec,
+                    engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
+                            BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
+        }
     }
 
     @SuppressWarnings("WeakerAccess")
     protected fun invokeMethod(method: String, arguments: Any?): Any? {
-        val deferred = CompletableDeferred<Any?>()
-        CoroutineScope(Dispatchers.Main).launch {
-            methodChannel.invokeMethod("name", arguments, object : MethodChannel.Result {
-                override fun success(result: Any?) {
-                    deferred.complete(result)
-                }
-
-                override fun error(code: String?, msg: String?, details: Any?) {
-                    deferred.complete(null)
-                }
-
-                override fun notImplemented() {
-                    deferred.complete(null)
-                }
-            })
-        }
-        return runBlocking {
-            val res = deferred.await()
-            println("RETURNED")
-            return@runBlocking res
-        }
+        ensureMethodChannelInitialized()
+        return methodChannel!!.invokeMethod(method, arguments)
     }
-
 
     override fun bulkInsert(uri: Uri, values: Array<out ContentValues>): Int {
         val result = invokeMethod("query", mapOf(
@@ -178,15 +164,42 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner {
         return super.bulkInsert(uri, values)
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
-        println("ANOTHER QUERY")
-        val result = invokeMethod("query", mapOf(
+        val result = asMap(invokeMethod("query", mapOf(
                 "uri" to uri,
                 "projection" to projection,
                 "selection" to selection,
                 "selectionArgs" to selectionArgs,
-                "sortOrder" to sortOrder))
-        return null
+                "sortOrder" to sortOrder)))
+                ?: return null
+        val payload = asMap(result["payload"])!!
+        val notificationUris = getUris(result["notificationUris"])
+        val extras = mapToBundle(asMap(result["extras"]))
+
+        val columnNames = listAsArray<String>(payload["columnNames"])
+        val data = listAsArray<Any?>(payload["data"])
+        val rowCount = payload["rowCount"] as Int
+
+        val cursor = DataMatrixCursor(columnNames, data, rowCount)
+        notificationUris?.let {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                cursor.setNotificationUris(context!!.contentResolver, it)
+            } else {
+                if (it.isEmpty()) {
+                    cursor.setNotificationUri(context!!.contentResolver, null)
+                } else {
+                    cursor.setNotificationUri(context!!.contentResolver, it.first())
+                }
+            }
+        }
+        extras?.let {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                cursor.extras = it
+            }
+            // else silently no-op
+        }
+        return cursor
     }
 
     override fun getType(uri: Uri): String? {

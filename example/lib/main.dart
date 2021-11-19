@@ -1,11 +1,12 @@
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
 
-import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:android_content_provider/android_content_provider.dart';
+
+const c = AndroidContentResolver();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final c = AndroidContentResolver();
   // final  test =  await c.bulkInsert(uri, ContentValues());
   // print(test)
   final cursor = await c.query(
@@ -15,7 +16,26 @@ void main() async {
     null,
     null,
   );
-  print(await cursor?.batchedGet().getColumnNames().commit());
+  if (cursor != null) {
+    try {
+      final columnNames = (await cursor.batchedGet().getColumnNames().commit())
+          .first as List<String>;
+      print(columnNames);
+      while (await cursor.moveToNext()) {
+        print(await cursor
+            .batchedGet()
+            .getInt(0)
+            .getString(1)
+            .getBytes(2)
+            .commit());
+      }
+    } finally {
+      await cursor.close();
+    }
+  } else {
+    print('cursor is null');
+  }
+  print('done');
   runApp(const MyApp());
 }
 
@@ -166,8 +186,20 @@ class Test extends AndroidContentProvider {
   @override
   Future<CursorData> query(String uri, List<String>? projection,
       String? selection, List<String>? selectionArgs, String? sortOrder) async {
-    print('query');
-    return MatrixCursorData(columnNames: ['test'], notificationUris: null);
+    final cursorData = MatrixCursorData(
+      columnNames: ['column_1', 'column_2', 'column_3'],
+      notificationUris: [
+        'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider'
+      ],
+    );
+    for (int i = 0; i < 100; i++) {
+      cursorData.addRow([
+        i,
+        'string_$i',
+        Uint8List.fromList([i, i + 1, i + 2]),
+      ]);
+    }
+    return cursorData;
   }
 
   @override
@@ -190,8 +222,8 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<bool> refresh(String uri, BundleMap? extras,
-      CancellationSignal? cancellationSignal) {
+  Future<bool> refresh(
+      String uri, BundleMap? extras, CancellationSignal? cancellationSignal) {
     // TODO: implement refresh
     throw UnimplementedError();
   }

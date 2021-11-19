@@ -4,7 +4,6 @@ import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.net.Uri
 import android.os.Build
 import android.util.Size
 import androidx.core.graphics.drawable.toBitmap
@@ -12,7 +11,6 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
-
 
 internal class AndroidContentResolver(
         private val context: Context,
@@ -52,14 +50,14 @@ internal class AndroidContentResolver(
                 "bulkInsert" -> {
                     result.success(contentResolver.bulkInsert(
                             getUri(args!!["uri"]),
-                            (args["values"] as ArrayList<out ContentValues>).toTypedArray()))
+                            listAsArray<ContentValues>(args["values"])!!))
                 }
                 "call" -> {
                     result.success(contentResolver.call(
                             getUri(args!!["uri"]),
                             args["method"] as String,
                             args["arg"] as String?,
-                            mapToBundle(args["extras"] as Map<String, Any>?)))
+                            mapToBundle(asMap(args["extras"]))))
                 }
                 "callWithAuthority" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -67,7 +65,7 @@ internal class AndroidContentResolver(
                                 args!!["authority"] as String,
                                 args["method"] as String,
                                 args["arg"] as String?,
-                                mapToBundle(args["extras"] as Map<String, Any>?)))
+                                mapToBundle(asMap(args["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.Q)
                     }
@@ -83,13 +81,13 @@ internal class AndroidContentResolver(
                     result.success(contentResolver.delete(
                             getUri(args!!["uri"]),
                             args["selection"] as String?,
-                            (args["selectionArgs"] as ArrayList<String>?)?.toTypedArray()))
+                            listAsArray<String?>(args["selectionArgs"])))
                 }
                 "deleteWithExtras" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         result.success(contentResolver.delete(
                                 getUri(args!!["uri"]),
-                                mapToBundle(args["extras"] as Map<String, Any>?)))
+                                mapToBundle(asMap(args["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.R)
                     }
@@ -123,7 +121,7 @@ internal class AndroidContentResolver(
                         result.success(contentResolver.insert(
                                 getUri(args!!["uri"]),
                                 args["values"] as ContentValues?,
-                                mapToBundle(args["extras"] as Map<String, Any>?)))
+                                mapToBundle(asMap(args["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.R)
                     }
@@ -165,7 +163,7 @@ internal class AndroidContentResolver(
                         var registrableObserver: RegistrableContentObserver? = null
                         observerId?.let { registrableObserver = RegistrableContentObserver.get(it) }
                         contentResolver.notifyChange(
-                                getUris(args["uris"]),
+                                getUris(args["uris"])!!,
                                 registrableObserver?.observer,
                                 args["flags"] as Int)
                         result.success(null)
@@ -176,9 +174,9 @@ internal class AndroidContentResolver(
                 "query" -> {
                     val cursor = contentResolver.query(
                             getUri(args!!["uri"]),
-                            (args["projection"] as ArrayList<String>?)?.toTypedArray(),
+                            listAsArray<String?>(args["projection"]),
                             args["selection"] as String?,
-                            (args["selectionArgs"] as ArrayList<String>?)?.toTypedArray(),
+                            listAsArray<String?>(args["selectionArgs"]),
                             args["sortOrder"] as String?)
                             ?: return result.success(null)
                     val interoperableCursor = InteroperableCursor(
@@ -192,9 +190,9 @@ internal class AndroidContentResolver(
                     cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
                     val cursor = contentResolver.query(
                             getUri(args["uri"]),
-                            (args["projection"] as ArrayList<String>?)?.toTypedArray(),
+                            listAsArray<String?>(args["projection"]),
                             args["selection"] as String?,
-                            (args["selectionArgs"] as ArrayList<String>?)?.toTypedArray(),
+                            listAsArray<String?>(args["selectionArgs"]),
                             args["sortOrder"] as String?,
                             interoperableSignal?.signal)
                             ?: return result.success(null)
@@ -210,8 +208,8 @@ internal class AndroidContentResolver(
                         cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
                         val cursor = contentResolver.query(
                                 getUri(args["uri"]),
-                                (args["projection"] as ArrayList<String>?)?.toTypedArray(),
-                                mapToBundle(args["queryArgs"] as Map<String, Any>?),
+                                listAsArray<String?>(args["projection"]),
+                                mapToBundle(asMap(args["queryArgs"])),
                                 interoperableSignal?.signal)
                                 ?: return result.success(null)
                         val interoperableCursor = InteroperableCursor(
@@ -229,7 +227,7 @@ internal class AndroidContentResolver(
                         cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
                         result.success(contentResolver.refresh(
                                 getUri(args["uri"]),
-                                mapToBundle(args["extras"] as Map<String, Any>?),
+                                mapToBundle(asMap(args["extras"])),
                                 interoperableSignal?.signal))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.O)
@@ -264,14 +262,14 @@ internal class AndroidContentResolver(
                             getUri(args!!["url"]),
                             args["values"] as ContentValues?,
                             args["selection"] as String?,
-                            (args["selectionArgs"] as ArrayList<String>?)?.toTypedArray()))
+                            listAsArray<String?>(args["selectionArgs"])))
                 }
                 "updateWithExtras" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         result.success(contentResolver.update(
                                 getUri(args!!["url"]),
                                 args["values"] as ContentValues?,
-                                mapToBundle(args["extras"] as Map<String, Any>?)))
+                                mapToBundle(asMap(args["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.R)
                     }

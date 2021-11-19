@@ -675,16 +675,22 @@ class NativeCursorGetBatch {
   final List<List<Object?>> _operations = [];
   List<List<Object?>> get operations => List.unmodifiable(_operations);
 
+  /// A list to store indexes of results to cast List<Object?> to List<String>.
+  final List<int> _stringListIndexes = [];
+
   void _add(String method, [Object? argument]) {
     _operations.add([method, argument]);
   }
 
   /// Commits a batch
-  Future<List<Object?>> commit() async {
+  Future<List<Object>> commit() async {
     final result = await _cursor._methodChannel
         .invokeListMethod<Object>('commitGetBatch', {
       'operations': _operations,
     });
+    for (final index in _stringListIndexes) {
+      result![index] = (result[index] as List<Object?>).cast<String>();
+    }
     return result!;
   }
 
@@ -744,6 +750,7 @@ class NativeCursorGetBatch {
 
   /// Will return `List<String>`.
   NativeCursorGetBatch getColumnNames() {
+    _stringListIndexes.add(_operations.length);
     _add('getColumnNames');
     return this;
   }
@@ -901,7 +908,7 @@ class MatrixCursorData extends CursorData {
     int start = _rowCount * _columnCount;
     _rowCount += 1;
     _ensureCapacity(start + _columnCount);
-    _data.setRange(start, _columnCount, columnValues);
+    _data.setRange(start, start + _columnCount, columnValues);
   }
 }
 
@@ -1069,7 +1076,7 @@ class CancellationSignal extends Interoperable {
 /// The majority of the methods are called by the native platform to dart. They can be overridden
 /// to implement some behavior.
 ///
-/// But also, vice verca, some methods that are marked with [native] annotation are meant
+/// But also, vice versa, some methods that are marked with [native] annotation are meant
 /// to be called from dart to native. These methods will never be called from native to dart.
 abstract class AndroidContentProvider {
   /// Creates a communication interface with native Android ContentProvider.
@@ -1103,13 +1110,14 @@ abstract class AndroidContentProvider {
           args['extras'] as BundleMap?,
         );
       case 'query':
-        return query(
+        final result = await query(
           args!['uri'] as String,
           args['projection'] as List<String>?,
           args['selection'] as String?,
           args['selectionArgs'] as List<String>?,
           args['sortOrder'] as String?,
         );
+        return result?.toMap();
       default:
         throw PlatformException(
           code: 'unimplemented',
@@ -1192,7 +1200,8 @@ abstract class AndroidContentProvider {
 
   /// delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete
-  Future<int> delete(String uri, String? selection, List<String>? selectionArgs);
+  Future<int> delete(
+      String uri, String? selection, List<String>? selectionArgs);
 
   /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete_1
@@ -1212,28 +1221,22 @@ abstract class AndroidContentProvider {
   /// getCallingAttributionTag(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingattributiontag
   @native
-  Future<String> getCallingAttributionTag() async {
-    final result =
-        await _methodChannel.invokeMethod<String>('getCallingAttributionTag');
-    return result!;
+  Future<String?> getCallingAttributionTag() async {
+    return _methodChannel.invokeMethod<String>('getCallingAttributionTag');
   }
 
   /// getCallingPackage(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingpackage
   @native
-  Future<String> getCallingPackage() async {
-    final result =
-        await _methodChannel.invokeMethod<String>('getCallingPackage');
-    return result!;
+  Future<String?> getCallingPackage() async {
+    return _methodChannel.invokeMethod<String>('getCallingPackage');
   }
 
   /// getCallingPackageUnchecked(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingpackageunchecked
   @native
-  Future<String> getCallingPackageUnchecked() async {
-    final result =
-        await _methodChannel.invokeMethod<String>('getCallingPackageUnchecked');
-    return result!;
+  Future<String?> getCallingPackageUnchecked() async {
+    return _methodChannel.invokeMethod<String>('getCallingPackageUnchecked');
   }
 
   // getContext(): Context?
@@ -1245,11 +1248,11 @@ abstract class AndroidContentProvider {
 
   /// getPathPermissions(): Array<PathPermission!>?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getpathpermissions
-  Future<List<PathPermission>> getPathPermissions();
+  Future<List<PathPermission>?> getPathPermissions();
 
   /// getReadPermission(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getreadpermission
-  Future<String> getReadPermission();
+  Future<String?> getReadPermission();
 
   /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getstreamtypes
@@ -1261,7 +1264,7 @@ abstract class AndroidContentProvider {
 
   /// getWritePermission(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getwritepermission
-  Future<String> getWritePermission();
+  Future<String?> getWritePermission();
 
   /// insert(uri: Uri, values: ContentValues?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert
@@ -1315,11 +1318,11 @@ abstract class AndroidContentProvider {
 
   /// openFile(uri: Uri, mode: String): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile
-  Future<String> openFile(String uri, String mode);
+  Future<String?> openFile(String uri, String mode);
 
   /// openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile_1
-  Future<String> openFileWithSignal(
+  Future<String?> openFileWithSignal(
     String uri,
     String mode,
     CancellationSignal cancellationSignal,
@@ -1351,7 +1354,7 @@ abstract class AndroidContentProvider {
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query
-  Future<CursorData> query(
+  Future<CursorData?> query(
     String uri,
     List<String>? projection,
     String? selection,
@@ -1361,7 +1364,7 @@ abstract class AndroidContentProvider {
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_1
-  Future<CursorData> queryWithSignal(
+  Future<CursorData?> queryWithSignal(
     String uri,
     List<String>? projection,
     String? selection,
@@ -1372,7 +1375,7 @@ abstract class AndroidContentProvider {
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
-  Future<CursorData> queryWithBundle(
+  Future<CursorData?> queryWithBundle(
     String uri,
     List<String>? projection,
     BundleMap? queryArgs,
@@ -1422,7 +1425,10 @@ abstract class AndroidContentProvider {
   /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update_1
   Future<int> updateWithExtras(
-      String uri, ContentValues? values, BundleMap? extras);
+    String uri,
+    ContentValues? values,
+    BundleMap? extras,
+  );
 }
 
 /// Detailed description of a specific MIME type, including an icon and label that describe the type
