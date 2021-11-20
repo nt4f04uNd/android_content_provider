@@ -6,19 +6,15 @@ import 'package:android_content_provider/android_content_provider.dart';
 void main() {
   group('CallingIdentity', () {
     test('toString', () {
-      final identity = CallingIdentity.fromMap(<String, Object?>{'id': 0});
-      expect(identity.toString(), 'CallingIdentity(0)');
+      final identity = CallingIdentity.fromId('someId');
+      expect(identity.id, 'someId');
+      expect(identity.toString(), 'CallingIdentity(someId)');
     });
 
-    test('serialization and equality', () {
-      CallingIdentity createIdentity(int id) =>
-          CallingIdentity.fromMap(<String, Object?>{'id': id});
-      final identity = createIdentity(0);
-      expect(identity.id, 0);
-      expect(identity.toMap(), <String, Object?>{'id': 0});
-      expect(() => identity.toMap()..['key'] = 'value', throwsUnsupportedError);
-      expect(identity, createIdentity(0));
-      expect(identity, isNot(createIdentity(1)));
+    test('equality', () {
+      final identity = CallingIdentity.fromId('someId');
+      expect(identity, CallingIdentity.fromId('someId'));
+      expect(identity, isNot(CallingIdentity.fromId('someOtherId')));
     });
   });
 

@@ -6,3 +6,29 @@ void main() {
 
   });
 }
+
+
+// TODO tests
+// TODO think about how to group them in files - in relation to this, how to split the main plugin's file as well
+// TODO integration tests
+//
+// * AndroidContentProviderPlugin
+// * (done) CallingIdentity
+// * (done) PathPermission
+// * (done) ContentValues
+// * AndroidContentProviderMessageCodec
+// * NativeCursor
+// * NativeCursorGetBatch
+// * CursorData
+// * MatrixCursorData
+// * MatrixCursorDataRowBuilder
+// * CursorRangeError
+// * Interoperable
+// * CancellationSignal
+// * AndroidContentProvider
+// * (done) MimeTypeInfo
+// * ContentObserver
+// * DataSetObserver
+// * AndroidContentResolver
+
+
