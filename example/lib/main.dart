@@ -63,9 +63,11 @@ class _MyAppState extends State<MyApp> {
 @pragma('vm:entry-point')
 void androidContentProviderEntrypoint() async {
   WidgetsFlutterBinding.ensureInitialized();
-  AndroidContentProviderPlugin.setUp(factory: (authority) {
-    return Test(authority);
-  });
+  AndroidContentProviderPlugin.setUp(contentProviders: [
+    Test(
+      'com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider',
+    )
+  ]);
 }
 
 class Test extends AndroidContentProvider {

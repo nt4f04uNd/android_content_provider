@@ -124,36 +124,18 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle)
         handler = Handler(Looper.getMainLooper())
-        val plugin = engine.plugins.get(AndroidContentProviderPlugin::class.java) as AndroidContentProviderPlugin
-        plugin.methodChannel!!.invokeMethod(
-                "createContentProvider",
-                mapOf("authority" to authority),
-                object : MethodChannel.Result {
-                    override fun success(result: Any?) {
-                        ensureMethodChannelInitialized()
-                    }
-
-                    override fun error(errorCode: String?, errorMessage: String?, errorDetails: Any?) {}
-                    override fun notImplemented() {}
-                })
-
+        methodChannel = SynchronousMethodChannel(MethodChannel(
+                engine.dartExecutor.binaryMessenger,
+                "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
+                AndroidContentProviderPlugin.pluginMethodCodec,
+                engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
+                        BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
         return true
     }
 
-    private fun ensureMethodChannelInitialized() {
-        if (methodChannel == null) {
-            methodChannel = SynchronousMethodChannel(MethodChannel(
-                    engine.dartExecutor.binaryMessenger,
-                    "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
-                    AndroidContentProviderPlugin.pluginMethodCodec,
-                    engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
-                            BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
-        }
-    }
-
+    /** Calls [MethodChannel.invokeMethod], blocking the caller thread. */
     @SuppressWarnings("WeakerAccess")
     protected fun invokeMethod(method: String, arguments: Any?): Any? {
-        ensureMethodChannelInitialized()
         return methodChannel!!.invokeMethod(method, arguments)
     }
 

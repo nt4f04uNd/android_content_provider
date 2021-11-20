@@ -6,10 +6,10 @@ import io.flutter.plugin.common.MethodChannel
 import java.lang.Exception
 import java.lang.IllegalStateException
 
-/** Calls [MethodChannel.invokeMethod], blocking the caller thread. */
 internal class SynchronousMethodChannel(private val methodChannel: MethodChannel) {
     private val handler = Handler(Looper.getMainLooper())
 
+    /** Synchronously calls [MethodChannel.invokeMethod], blocking the caller thread. */
     fun invokeMethod(method: String, arguments: Any?): Any? {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             throw IllegalStateException(

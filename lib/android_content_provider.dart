@@ -11,54 +11,33 @@ import 'package:meta/meta.dart';
 
 const _uuid = Uuid();
 const _channelPrefix = 'com.nt4f04und.android_content_provider';
+const _pluginMethodCodec =
+    StandardMethodCodec(AndroidContentProviderMessageCodec());
 
 /// The android_content_provider plugin binding.
-///
-/// Allows to create set a factory for [AndroidContentProvider]s.
 abstract class AndroidContentProviderPlugin {
   AndroidContentProviderPlugin._();
 
-  static const _pluginMethodCodec =
-      StandardMethodCodec(AndroidContentProviderMessageCodec());
+  static bool _debugSetUp = false;
 
-  static const _methodChannel = MethodChannel('$_channelPrefix/plugin');
-
-  static late final StreamController<String> _onCreateStreamController =
-      StreamController();
-
-  static Future<void> _handleMethodCall(MethodCall call) async {
-    final BundleMap? args = (call.arguments as Map?)?.cast<String, Object?>();
-    switch (call.method) {
-      case 'createContentProvider':
-        _onCreateStreamController.add(args!['authority']! as String);
-        break;
-      default:
-        throw PlatformException(
-          code: 'unimplemented',
-          message: 'Method not implemented: ${call.method}',
-        );
-    }
-  }
-
-  /// Sets up a factory to create [AndroidContentProvider]s from the platform requests
-  /// when the native ContentProvider `onCreate` is called.
+  /// Sets up the plugin for communication with native `AndroidContentProvider`.
+  ///
+  /// The [contentProviders] must contain a list of [AndroidContentProvider]s with
+  /// authorities matching the native `AndroidContentProvider`s declared in `AndroidManifest.xml`.
   ///
   /// Call this from the `androidContentProviderEntrypoint` function if you use the
   /// [AndroidContentProvider].
-  static void setUp({required AndroidContentProviderFactory factory}) {
+  static void setUp({required List<AndroidContentProvider> contentProviders}) {
+    assert(() {
+      if (_debugSetUp) {
+        throw StateError(
+            "AndroidContentProviderPlugin has already been set up");
+      }
+      return _debugSetUp = true;
+    }());
     WidgetsFlutterBinding.ensureInitialized();
-    if (_onCreateStreamController.hasListener) {
-      throw StateError(
-          "AndroidContentProviderPlugin has already been set up for this engine");
-    }
-    _onCreateStreamController.stream.listen(factory);
-    _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 }
-
-/// Signature for [AndroidContentProviderPlugin.setup] listener argument.
-typedef AndroidContentProviderFactory = AndroidContentProvider Function(
-    String authority);
 
 /// Annotation on [AndroidContentProvider] methods that indicates that the method
 /// is has a default native implmentation and can be called by dart code to perform some action or
@@ -510,7 +489,7 @@ class NativeCursor extends Interoperable {
   NativeCursor.fromId(String id)
       : _methodChannel = MethodChannel(
           '$_channelPrefix/Cursor/$id',
-          AndroidContentProviderPlugin._pluginMethodCodec,
+          _pluginMethodCodec,
         ),
         super.fromId(id);
 
@@ -1082,14 +1061,13 @@ abstract class AndroidContentProvider {
   /// Creates a communication interface with native Android ContentProvider.
   AndroidContentProvider(this.authority)
       : _methodChannel = MethodChannel(
-            '$_channelPrefix/ContentProvider/$authority',
-            AndroidContentProviderPlugin._pluginMethodCodec) {
+          '$_channelPrefix/ContentProvider/$authority',
+          _pluginMethodCodec,
+        ) {
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 
-  /// ContentProvider's authority.
-  ///
-  /// Received from platform in [AndroidContentProviderPlugin.setup] listener.
+  /// ContentProvider's authority, matching the one, declared in `AndroidManifest.xml`.
   final String authority;
 
   final MethodChannel _methodChannel;
@@ -1289,8 +1267,12 @@ abstract class AndroidContentProvider {
   // onCreate(): Boolean
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#oncreate
   //
-  // Use [AndroidContentProviderPlugin.setup] create listener.
-  // Usually AndroidContentProvider should be created in this listener, so constructor can be used instead.
+  // Use the constructor instead.
+  //
+  // The native onCreate is likely (but not necessarily) will be called only once during the
+  // whole app process. This means your ContentProvider may end up not properly initialized
+  // after the Flutter app is hot restarted, because the ContentProvider instance is entirely
+  // recreated, but onCreate is not called again.
   //
   //
 
@@ -1491,7 +1473,7 @@ abstract class ContentObserver extends Interoperable {
   ContentObserver._(this._id)
       : _methodChannel = MethodChannel(
           '$_channelPrefix/ContentObserver/$_id',
-          AndroidContentProviderPlugin._pluginMethodCodec,
+          _pluginMethodCodec,
         ) {
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
@@ -1622,8 +1604,9 @@ class AndroidContentResolver {
   static const instance = AndroidContentResolver();
 
   static const MethodChannel _methodChannel = MethodChannel(
-      '$_channelPrefix/ContentResolver',
-      AndroidContentProviderPlugin._pluginMethodCodec);
+    '$_channelPrefix/ContentResolver',
+    _pluginMethodCodec,
+  );
 
   // acquireContentProviderClient(uri: Uri): ContentProviderClient?
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquirecontentproviderclient
