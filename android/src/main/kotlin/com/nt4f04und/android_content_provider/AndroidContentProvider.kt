@@ -1,135 +1,170 @@
 package com.nt4f04und.android_content_provider
 
+import android.app.Application
 import android.content.ContentProvider
 import android.content.ContentValues
+import android.content.Context
 import android.database.Cursor
 import android.net.Uri
-import android.os.Handler
-import android.os.Looper
+import android.os.Bundle
+import android.os.CancellationSignal
+import android.os.ParcelFileDescriptor
 import androidx.annotation.CallSuper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import com.nt4f04und.android_content_provider.AndroidContentProvider.Companion.getFlutterEngineGroup
 import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.FlutterEngineGroup
 import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.io.FileDescriptor
+import java.io.FileNotFoundException
+import java.io.PrintWriter
+
 
 /** A [ContentProvider] for [AndroidContentProviderPlugin].
  *
  * ### Lifecycle
  *
- * All [AndroidContentProvider]s must be created in dedicated Flutter engines,
- * which are only supposed to host content providers.
+ * All [AndroidContentProvider]s create their own dedicated [FlutterEngine]
+ * from the [FlutterEngineGroup] returned by [getFlutterEngineGroup].
+ * This means each content provider will have its own isolate.
  *
- * That means But it's prohibited to use the engine that was created by some other source.
- * Trying to do that will lead to crash.
- *
- * However, multiple [AndroidContentProvider] are able to share one or multiple engines
- * between each other. To do this, override multiple [AndroidContentProvider]s [flutterEngineCacheId]
- * to have the same value.
- *
- * There reason for this goes as follows:
- *
- *     In Android, [ContentProvider]s can be created by the system on demand from background.
- *     That means that the provider can be created before the app starts and continue running after
- *     other app components are destroyed, if system thinks there's enough RAM, or there's other process
- *     for which this content provider is important.
- *
- *     Thus, if:
- *       - engine starts with UI isolate
- *       - a content provider connects and holds the engine and all the resources of the isolate
- *       - Activity is destroyed and app process goes to background
- *
- *     Then we end up in a situation where we have a lot of unnecessary memory claimed which will
- *     also likely lead to system killing the process.
- *
+ * In Android, [ContentProvider]s can be created by the system on demand from background.
+ * Once the content provider is created, it is not destroyed, until the app process is.
  */
 abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
-    private lateinit var lifecycle: LifecycleRegistry
+    private var lifecycle: LifecycleRegistry? = null
     private lateinit var engine: FlutterEngine
-    private lateinit var flutterLoader: FlutterLoader
-    private lateinit var handler: Handler
     private var methodChannel: SynchronousMethodChannel? = null
-    private val createdEngines: MutableSet<String> = mutableSetOf()
 
     companion object {
-        private const val ENTRYPOINT_NAME = "androidContentProviderEntrypoint"
+        private var flutterLoader: FlutterLoader? = null
+        private var engineGroup: FlutterEngineGroup? = null
+
+        /**
+         * Returns the [FlutterEngineGroup] used to create engines from [AndroidContentProvider]s.
+         *
+         * You should use this engine group in your own components, because it drastically
+         * [improves performance and reduces memory footprint](https://flutter.dev/docs/development/add-to-app/multiple-flutters).
+         *
+         * See the (TODO link to readme) for instructions how to do that.
+         */
+        fun getFlutterEngineGroup(context: Context): FlutterEngineGroup {
+            if (engineGroup == null) {
+                engineGroup = FlutterEngineGroup(context.applicationContext)
+            }
+            return engineGroup!!
+        }
+
+        /**
+         * Set the engine group used by plugin before it is initialized
+         * from call to [getFlutterEngineGroup]. If already initialized,
+         * will do nothing.
+         *
+         * Meant to be called from [Application.onCreate] to allow
+         * sharing [FlutterEngineGroup] between multiple plugins.
+         */
+        fun presetFlutterEngineGroup(value: FlutterEngineGroup) {
+            if (engineGroup == null) {
+                engineGroup = value
+            }
+        }
     }
 
-    /** Should be set to this [ContentProvider]'s authority,
-     * should also match the one it's declared with in manifest
+    /**
+     * Should be set to this [ContentProvider]'s authority
+     * it's declared with in manifest.
      */
     abstract val authority: String
 
-    /** If non-null, will use a [FlutterEngine] with the specified cache ID.
-     * Will create it, if it's not created yet.
+    /**
+     * Should be set to a entrypoint name this [ContentProvider]
+     * will call in Dart when it's created.
      *
-     * This can be used to make several [AndroidContentProvider]s run on
-     * the same engine.
+     * Each content provider must have its unique entrypoint.
      */
-    @SuppressWarnings("WeakerAccess")
-    protected val flutterEngineCacheId: String? = null
-
-    /** Provides a [FlutterEngineGroup] to create a [FlutterEngine] this
-     * [ContentProvider] will connect to
-     *
-     * This is a preferred way of setting up an engine, because it drastically
-     * [improves performance and memory footprint](https://flutter.dev/docs/development/add-to-app/multiple-flutters).
-     *
-     * If returns null the content provider will create the engine without group.
-     */
-    @SuppressWarnings("WeakerAccess")
-    protected fun provideFlutterEngineGroup(): FlutterEngineGroup? {
-        return null
-    }
+    abstract val entrypointName: String // TODO: eventually replace it with initialArguments
 
     override fun getLifecycle(): Lifecycle {
-        return lifecycle
+        ensureLifecycleInitialized()
+        return lifecycle!!
+    }
+
+    private fun ensureLifecycleInitialized() {
+        if (lifecycle == null) {
+            lifecycle = LifecycleRegistry(this)
+        }
     }
 
     @CallSuper
     override fun onCreate(): Boolean {
-        var cachedEngine: FlutterEngine? = null
-        flutterEngineCacheId?.let {
-            cachedEngine = FlutterEngineCache.getInstance().get(it)
-        }
-        if (cachedEngine != null) {
-            if (!createdEngines.contains(flutterEngineCacheId)) {
-                throw IllegalStateException(
-                        "The engine by specified 'flutterEngineCacheId' is not owned by AndroidContentProvider. " +
-                                "See AndroidContentProvider doc comment for more info.")
-            }
-            engine = cachedEngine!!
-        } else {
+        if (flutterLoader == null) {
             flutterLoader = FlutterLoader()
-            flutterLoader.startInitialization(context!!)
-            val entrypoint = DartExecutor.DartEntrypoint(flutterLoader.findAppBundlePath(), ENTRYPOINT_NAME)
-            val engineGroup = provideFlutterEngineGroup()
-            if (engineGroup != null) {
-                engine = engineGroup.createAndRunEngine(context!!, entrypoint)
-            } else {
-                engine = FlutterEngine(context!!)
-                engine.dartExecutor.executeDartEntrypoint(entrypoint)
-            }
-            flutterEngineCacheId?.let {
-                createdEngines.add(it)
-                FlutterEngineCache.getInstance().put(it, engine)
-            }
+            flutterLoader!!.startInitialization(context!!)
         }
-        lifecycle = LifecycleRegistry(this)
-        lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
-        engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle)
-        handler = Handler(Looper.getMainLooper())
+        val entrypoint = DartExecutor.DartEntrypoint(flutterLoader!!.findAppBundlePath(), entrypointName)
+        val engineGroup = getFlutterEngineGroup(context!!)
+        engine = engineGroup.createAndRunEngine(context!!, entrypoint)
+        ensureLifecycleInitialized()
+        lifecycle!!.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle!!)
         methodChannel = SynchronousMethodChannel(MethodChannel(
                 engine.dartExecutor.binaryMessenger,
                 "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
                 AndroidContentProviderPlugin.pluginMethodCodec,
                 engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
                         BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
+        @Suppress("UNCHECKED_CAST")
+        methodChannel!!.methodChannel.setMethodCallHandler { call, result ->
+            val args = call.arguments as Map<String, Any>?
+            when (call.method) {
+                "clearCallingIdentity" -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        val identity = clearCallingIdentity()
+                        val id = RegistrableCallingIdentity.register(identity)
+                        result.success(id)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "getCallingAttributionTag" -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        result.success(callingAttributionTag)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "getCallingPackage" -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                        result.success(callingPackage)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "getCallingPackageUnchecked" -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                        result.success(callingPackageUnchecked)
+                    } else {
+                        result.success(null)
+                    }
+                }
+                "restoreCallingIdentity" -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        val identityId = args!!["identity"] as String
+                        val identity = RegistrableCallingIdentity.unregister(identityId)
+                        restoreCallingIdentity(identity!!)
+                        result.success(null)
+                    } else {
+                        result.success(null)
+                    }
+                }
+            }
+        }
         return true
     }
 
@@ -139,25 +174,187 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         return methodChannel!!.invokeMethod(method, arguments)
     }
 
-    override fun bulkInsert(uri: Uri, values: Array<out ContentValues>): Int {
-        val result = invokeMethod("query", mapOf(
-                "uri" to uri,
-                "values" to values))
-        return super.bulkInsert(uri, values)
+    /** Calls [MethodChannel.invokeMethod], not blocking the caller thread. */
+    protected fun asyncInvokeMethod(method: String, arguments: Any?): Any? {
+        return methodChannel!!.methodChannel.invokeMethod(method, arguments)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
-        val result = asMap(invokeMethod("query", mapOf(
+    override fun bulkInsert(uri: Uri, values: Array<out ContentValues>): Int {
+        return invokeMethod("bulkInsert", mapOf(
                 "uri" to uri,
-                "projection" to projection,
+                "values" to values))
+                as Int
+    }
+
+    override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
+        return mapToBundle(asMap(invokeMethod("call", mapOf(
+                "method" to method,
+                "arg" to arg,
+                "extras" to extras))))
+    }
+
+    override fun call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle? {
+        return mapToBundle(asMap(invokeMethod("callWithAuthority", mapOf(
+                "authority" to authority,
+                "method" to method,
+                "arg" to arg,
+                "extras" to extras))))
+    }
+
+    override fun canonicalize(url: Uri): Uri? {
+        return getUri(invokeMethod("canonicalize", mapOf(
+                "url" to url)))
+    }
+
+    //
+    // clearCallingIdentity
+    //
+
+    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int {
+        return invokeMethod("delete", mapOf(
+                "uri" to uri,
                 "selection" to selection,
-                "selectionArgs" to selectionArgs,
-                "sortOrder" to sortOrder)))
-                ?: return null
-        val payload = asMap(result["payload"])!!
-        val notificationUris = getUris(result["notificationUris"])
-        val extras = mapToBundle(asMap(result["extras"]))
+                "selectionArgs" to selectionArgs))
+                as Int
+    }
+
+    override fun delete(uri: Uri, extras: Bundle?): Int {
+        return invokeMethod("deleteWithExtras", mapOf(
+                "uri" to uri,
+                "extras" to extras))
+                as Int
+    }
+
+    override fun dump(fd: FileDescriptor, writer: PrintWriter, args: Array<out String>) {
+        writer.write(invokeMethod("dump", mapOf(
+                "args" to args))
+                as String)
+    }
+
+    //
+    // getCallingAttributionTag
+    //
+    // getCallingPackage
+    //
+    // getCallingPackageUnchecked
+    //
+
+    override fun getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String>? {
+        return listAsArray(invokeMethod("getStreamTypes", mapOf(
+                "uri" to uri,
+                "mimeTypeFilter" to mimeTypeFilter)))
+    }
+
+    override fun getType(uri: Uri): String? {
+        return invokeMethod("getType", mapOf(
+                "uri" to uri))
+                as String?
+    }
+
+    override fun insert(uri: Uri, values: ContentValues?): Uri? {
+        return getUri(invokeMethod("insert", mapOf(
+                "uri" to uri,
+                "values" to values)))
+    }
+
+    override fun insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri? {
+        return getUri(invokeMethod("insertWithExtras", mapOf(
+                "uri" to uri,
+                "values" to values,
+                "extras" to extras)))
+    }
+
+    override fun onCallingPackageChanged() {
+        invokeMethod("onCallingPackageChanged", null)
+    }
+
+    override fun onLowMemory() {
+        asyncInvokeMethod("onLowMemory", null)
+    }
+
+    override fun onTrimMemory(level: Int) {
+        asyncInvokeMethod("onTrimMemory", mapOf(
+                "level" to level))
+    }
+
+    override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor? {
+        val path = invokeMethod("openFile", mapOf(
+                "uri" to uri,
+                "mode" to mode))
+                as String?
+        return openFileFromPath(path, mode)
+    }
+
+    override fun openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor? {
+        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        try {
+            val path = invokeMethod("openFileWithSignal", mapOf(
+                    "uri" to uri,
+                    "mode" to mode,
+                    "cancellationSignal" to interoperableSignal.id))
+                    as String?
+            return openFileFromPath(path, mode)
+        } finally {
+            interoperableSignal.destroy()
+        }
+    }
+
+    private fun openFileFromPath(path: String?, mode: String) : ParcelFileDescriptor {
+        val file: File
+        if (path != null) {
+            file = File(path)
+        } else {
+            throw FileNotFoundException(path)
+        }
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode(mode))
+        } else {
+            ParcelFileDescriptor.open(file, translateModeStringToPosix(mode))
+        }
+    }
+
+    /**
+     * Copies the logic from [ParcelFileDescriptor.parseMode] to use
+     * it below KITKAT.
+     */
+    @SuppressWarnings("WeakerAccess")
+    protected fun translateModeStringToPosix(mode: String): Int {
+        // Quick check for invalid chars
+        for (element in mode) {
+            when (element) {
+                'r', 'w', 't', 'a' -> {
+                }
+                else -> throw IllegalArgumentException("Bad mode: $mode")
+            }
+        }
+        var res: Int
+        res = when {
+            mode.startsWith("rw") -> {
+                ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_CREATE
+            }
+            mode.startsWith("w") -> {
+                ParcelFileDescriptor.MODE_WRITE_ONLY or ParcelFileDescriptor.MODE_CREATE
+            }
+            mode.startsWith("r") -> {
+                ParcelFileDescriptor.MODE_READ_ONLY
+            }
+            else -> {
+                throw IllegalArgumentException("Bad mode: $mode")
+            }
+        }
+        if (mode.indexOf('t') != -1) {
+            res = res or ParcelFileDescriptor.MODE_TRUNCATE
+        }
+        if (mode.indexOf('a') != -1) {
+            res = res or ParcelFileDescriptor.MODE_APPEND
+        }
+        return res
+    }
+
+    private fun matrixCursorFromMap(map: Map<String, Any?>): DataMatrixCursor {
+        val payload = asMap(map["payload"])!!
+        val notificationUris = getUris(map["notificationUris"])
+        val extras = mapToBundle(asMap(map["extras"]))
 
         val columnNames = listAsArray<String>(payload["columnNames"])
         val data = listAsArray<Any?>(payload["data"])
@@ -184,19 +381,90 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         return cursor
     }
 
-    override fun getType(uri: Uri): String? {
-        return null
+    @Suppress("UNCHECKED_CAST")
+    override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
+        val result = asMap(invokeMethod("query", mapOf(
+                "uri" to uri,
+                "projection" to projection,
+                "selection" to selection,
+                "selectionArgs" to selectionArgs,
+                "sortOrder" to sortOrder)))
+                ?: return null
+        return matrixCursorFromMap(result)
     }
 
-    override fun insert(uri: Uri, values: ContentValues?): Uri? {
-        return null
+    override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor? {
+        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        try {
+            val result = asMap(invokeMethod("queryWithSignal", mapOf(
+                    "uri" to uri,
+                    "projection" to projection,
+                    "selection" to selection,
+                    "selectionArgs" to selectionArgs,
+                    "sortOrder" to sortOrder,
+                    "cancellationSignal" to interoperableSignal.id)))
+                    ?: return null
+            return matrixCursorFromMap(result)
+        } finally {
+            interoperableSignal.destroy()
+        }
     }
 
-    override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int {
-        return 0
+    override fun query(uri: Uri, projection: Array<out String>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor? {
+        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        try {
+            val result = asMap(invokeMethod("queryWithBundle", mapOf(
+                    "uri" to uri,
+                    "projection" to projection,
+                    "queryArgs" to queryArgs,
+                    "cancellationSignal" to interoperableSignal.id)))
+                    ?: return null
+            return matrixCursorFromMap(result)
+        } finally {
+            interoperableSignal.destroy()
+        }
+    }
+
+    override fun refresh(uri: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean {
+        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        try {
+            return invokeMethod("refresh", mapOf(
+                    "uri" to uri,
+                    "extras" to extras,
+                    "cancellationSignal" to interoperableSignal.id))
+                    as Boolean
+        } finally {
+            interoperableSignal.destroy()
+        }
+    }
+
+    //
+    // restoreCallingIdentity
+    //
+
+    override fun shutdown() {
+        invokeMethod("shutdown", null)
+    }
+
+    override fun uncanonicalize(url: Uri): Uri? {
+        return getUri(invokeMethod("uncanonicalize", mapOf(
+                "url" to url)))
     }
 
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int {
-        return 0
+        return invokeMethod("update", mapOf(
+                "uri" to uri,
+                "values" to values,
+                "selection" to selection,
+                "selectionArgs" to selectionArgs))
+                as Int
+    }
+
+    override fun update(uri: Uri, values: ContentValues?, extras: Bundle?): Int {
+        return invokeMethod("update", mapOf(
+                "uri" to uri,
+                "values" to values,
+                "extras" to extras))
+                as Int
     }
 }

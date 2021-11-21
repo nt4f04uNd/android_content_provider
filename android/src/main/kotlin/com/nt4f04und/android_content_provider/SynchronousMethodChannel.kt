@@ -6,7 +6,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.lang.Exception
 import java.lang.IllegalStateException
 
-internal class SynchronousMethodChannel(private val methodChannel: MethodChannel) {
+internal class SynchronousMethodChannel(val methodChannel: MethodChannel) {
     private val handler = Handler(Looper.getMainLooper())
 
     /** Synchronously calls [MethodChannel.invokeMethod], blocking the caller thread. */

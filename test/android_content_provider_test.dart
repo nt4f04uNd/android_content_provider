@@ -12,9 +12,7 @@ void main() {
 // TODO think about how to group them in files - in relation to this, how to split the main plugin's file as well
 // TODO integration tests
 //
-// * AndroidContentProviderPlugin
 // * (done) CallingIdentity
-// * (done) PathPermission
 // * (done) ContentValues
 // * AndroidContentProviderMessageCodec
 // * NativeCursor

@@ -14,29 +14,12 @@ const _channelPrefix = 'com.nt4f04und.android_content_provider';
 const _pluginMethodCodec =
     StandardMethodCodec(AndroidContentProviderMessageCodec());
 
-/// The android_content_provider plugin binding.
-abstract class AndroidContentProviderPlugin {
-  AndroidContentProviderPlugin._();
+List<T>? _asList<T>(Object? value) {
+  return (value as List?)?.cast<T>();
+}
 
-  static bool _debugSetUp = false;
-
-  /// Sets up the plugin for communication with native `AndroidContentProvider`.
-  ///
-  /// The [contentProviders] must contain a list of [AndroidContentProvider]s with
-  /// authorities matching the native `AndroidContentProvider`s declared in `AndroidManifest.xml`.
-  ///
-  /// Call this from the `androidContentProviderEntrypoint` function if you use the
-  /// [AndroidContentProvider].
-  static void setUp({required List<AndroidContentProvider> contentProviders}) {
-    assert(() {
-      if (_debugSetUp) {
-        throw StateError(
-            "AndroidContentProviderPlugin has already been set up");
-      }
-      return _debugSetUp = true;
-    }());
-    WidgetsFlutterBinding.ensureInitialized();
-  }
+Map<K, V>? _asMap<K, V>(Object? value) {
+  return (value as Map?)?.cast<K, V>();
 }
 
 /// Annotation on [AndroidContentProvider] methods that indicates that the method
@@ -51,8 +34,36 @@ class _Native {
   const _Native();
 }
 
+/// Used to indicate that some method requires a certain Android API
+/// level to work and that method will return `null`, if called on lower API versions.
+//
+// ignore: camel_case_types
+class requiresApiOrReturnsNull {
+  /// Creates [requiresApiOrReturnsNull].
+  const requiresApiOrReturnsNull(this.apiLevel);
+
+  /// Required API level.
+  final int apiLevel;
+}
+
+/// Used to indicate that some method requires a certain Android API
+/// level to work and that method will throw if called on lower API versions.
+//
+// ignore: camel_case_types
+class requiresApiOrThrows {
+  /// Creates [requiresApiOrThrows].
+  const requiresApiOrThrows(this.apiLevel);
+
+  /// Required API level.
+  final int apiLevel;
+}
+
 /// Map type alias that is used in place of Android Bundle
 /// https://developer.android.com/reference/android/os/Bundle.
+///
+/// Decoded values inside a [BundleMap] that is received from native
+/// will use `List<Object?>` and `Map<Object?, Object?>`
+/// irresponsive of content.
 typedef BundleMap = Map<String, Object?>;
 
 /// Opaque token representing the identity of an incoming IPC.
@@ -65,54 +76,6 @@ class CallingIdentity extends Interoperable {
   String toString() {
     return '${objectRuntimeType(this, 'CallingIdentity')}($id)';
   }
-}
-
-/// Description of permissions needed to access a particular path in a content provider
-/// https://developer.android.com/reference/kotlin/android/content/pm/PathPermission
-///
-/// See also https://developer.android.com/guide/topics/manifest/path-permission-element
-/// on how to declare these paths.
-class PathPermission {
-  /// Creates a [PathPermission].
-  const PathPermission({
-    this.readPermission,
-    this.writePermission,
-  });
-
-  /// Read permission.
-  /// For example "com.example.permission.READ".
-  final String? readPermission;
-
-  /// Write permission.
-  /// For example "com.example.permission.WRITE".
-  final String? writePermission;
-
-  @override
-  bool operator ==(Object other) {
-    return other is PathPermission &&
-        other.readPermission == readPermission &&
-        other.writePermission == writePermission;
-  }
-
-  @override
-  int get hashCode => hashValues(readPermission, writePermission);
-
-  @override
-  String toString() {
-    return '${objectRuntimeType(this, 'PathPermission')}(read: $readPermission, write: $writePermission)';
-  }
-
-  /// Creates path permissions from map.
-  factory PathPermission.fromMap(BundleMap map) => PathPermission(
-        readPermission: map['readPermission'] as String?,
-        writePermission: map['writePermission'] as String?,
-      );
-
-  /// Converts the path permissions to map.
-  BundleMap toMap() => BundleMap.unmodifiable(<String, Object?>{
-        'readPermission': readPermission,
-        'writePermission': writePermission,
-      });
 }
 
 /// This class is used to store a set of values that the content provider/resolver can process
@@ -376,6 +339,9 @@ class _Float extends _NumberWrapper<double> {
 ///  * `Bundle` - when sending from native, converts it to [BundleMap]. Sending from Dart is not allowed and will throw.
 ///  * [ContentValues] - also treats all numeric types like Byte, Short, etc. literally, converting
 ///    them into native counterparts.
+///
+/// Decoded values will use `List<Object?>` and `Map<Object?, Object?>`
+/// irrespective of content.
 class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   /// Creates the codec.
   const AndroidContentProviderMessageCodec();
@@ -481,9 +447,6 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 /// See also:
 ///  * [MatrixCursorData], which is a class, returned from [AndroidContentProvider.query].
 class NativeCursor extends Interoperable {
-  /// Creates native cursor.
-  NativeCursor() : this.fromId(_uuid.v4());
-
   /// Creates native cursor from an existing ID.
   @internal
   NativeCursor.fromId(String id)
@@ -652,7 +615,6 @@ class NativeCursorGetBatch {
   final NativeCursor _cursor;
 
   final List<List<Object?>> _operations = [];
-  List<List<Object?>> get operations => List.unmodifiable(_operations);
 
   /// A list to store indexes of results to cast List<Object?> to List<String>.
   final List<int> _stringListIndexes = [];
@@ -668,7 +630,7 @@ class NativeCursorGetBatch {
       'operations': _operations,
     });
     for (final index in _stringListIndexes) {
-      result![index] = (result[index] as List<Object?>).cast<String>();
+      result![index] = _asList<String>(result[index])!;
     }
     return result!;
   }
@@ -990,6 +952,8 @@ class CancellationSignal extends Interoperable {
   bool get cancelled => _cancelled;
   bool _cancelled = false;
 
+  bool _disposed = false;
+
   VoidCallback? _cancelListener;
 
   /// Sets the cancellation [listener] to be called when canceled.
@@ -1008,7 +972,7 @@ class CancellationSignal extends Interoperable {
   /// Cancels the operation and signals the cancellation listener.
   /// If the operation has not yet started, then it will be canceled as soon as it does.
   Future<void> cancel() async {
-    if (_cancelled) {
+    if (_cancelled || _disposed) {
       return;
     }
     try {
@@ -1021,8 +985,17 @@ class CancellationSignal extends Interoperable {
     }
   }
 
+  /// Disposes the cancellation signal.
+  ///
+  /// This is called automatically by [AndroidContentResolver]
+  /// when the method call ends.
+  void dispose() {
+    _disposed = true;
+    _methodChannel.setMethodCallHandler(null);
+  }
+
   Future<dynamic> _handleMethodCall(MethodCall call) async {
-    if (_cancelled) {
+    if (_cancelled || _disposed) {
       return;
     }
     switch (call.method) {
@@ -1064,8 +1037,20 @@ abstract class AndroidContentProvider {
           '$_channelPrefix/ContentProvider/$authority',
           _pluginMethodCodec,
         ) {
+    assert(() {
+      if (_debugSetUp) {
+        throw StateError(
+            "AndroidContentProvider has already been created in this isolate. "
+            "Each AndroidContentProvider must have a unique entrypoint and be created only once in it. "
+            "Make sure you followed the installation intructions from README.");
+      }
+      return _debugSetUp = true;
+    }());
+    WidgetsFlutterBinding.ensureInitialized();
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
+
+  bool _debugSetUp = false;
 
   /// ContentProvider's authority, matching the one, declared in `AndroidManifest.xml`.
   final String authority;
@@ -1073,13 +1058,12 @@ abstract class AndroidContentProvider {
   final MethodChannel _methodChannel;
 
   Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
-    final BundleMap? args =
-        (methodCall.arguments as Map?)?.cast<String, Object?>();
+    final BundleMap? args = _asMap<String, Object?>(methodCall.arguments);
     switch (methodCall.method) {
       case 'bulkInsert':
         return bulkInsert(
           args!['uri'] as String,
-          args['values'] as List<ContentValues>,
+          _asList(args['values'])!,
         );
       case 'call':
         return call(
@@ -1087,15 +1071,141 @@ abstract class AndroidContentProvider {
           args['arg'] as String?,
           args['extras'] as BundleMap?,
         );
+      case 'callWithAuthority':
+        return callWithAuthority(
+          args!['authority'] as String,
+          args['method'] as String,
+          args['arg'] as String?,
+          args['extras'] as BundleMap?,
+        );
+      case 'canonicalize':
+        return canonicalize(args!['url'] as String);
+      case 'delete':
+        return delete(
+          args!['uri'] as String,
+          args['selection'] as String?,
+          _asList(args['selectionArgs']),
+        );
+      case 'deleteWithExtras':
+        return deleteWithExtras(
+          args!['uri'] as String,
+          args['extras'] as BundleMap?,
+        );
+      case 'dump':
+        return dump(_asList(args!['args']));
+      case 'getStreamTypes':
+        return getStreamTypes(
+          args!['uri'] as String,
+          args['mimeTypeFilter'] as String,
+        );
+      case 'getType':
+        return getType(args!['uri'] as String);
+      case 'insert':
+        return insert(
+          args!['uri'] as String,
+          args['values'] as ContentValues?,
+        );
+      case 'insertWithExtras':
+        return insertWithExtras(
+          args!['uri'] as String,
+          args['values'] as ContentValues?,
+          args['extras'] as BundleMap?,
+        );
+      case 'onCallingPackageChanged':
+        return onCallingPackageChanged();
+      case 'onLowMemory':
+        return onLowMemory();
+      case 'onTrimMemory':
+        return onTrimMemory(args!['level'] as int);
+      case 'openFile':
+        return openFile(
+          args!['uri'] as String,
+          args['mode'] as String,
+        );
+      case 'openFileWithSignal':
+        final signalId = args!['cancellationSignal'] as String?;
+        final signal =
+            signalId == null ? null : CancellationSignal.fromId(signalId);
+        try {
+          return openFileWithSignal(
+            args['uri'] as String,
+            args['mode'] as String,
+            signal,
+          );
+        } finally {
+          signal?.dispose();
+        }
       case 'query':
         final result = await query(
           args!['uri'] as String,
-          args['projection'] as List<String>?,
+          _asList(args['projection']),
           args['selection'] as String?,
-          args['selectionArgs'] as List<String>?,
+          _asList(args['selectionArgs']),
           args['sortOrder'] as String?,
         );
         return result?.toMap();
+      case 'queryWithSignal':
+        final signalId = args!['cancellationSignal'] as String?;
+        final signal =
+            signalId == null ? null : CancellationSignal.fromId(signalId);
+        try {
+          final result = await queryWithSignal(
+            args['uri'] as String,
+            _asList(args['projection']),
+            args['selection'] as String?,
+            _asList(args['selectionArgs']),
+            args['sortOrder'] as String?,
+            signal,
+          );
+          return result?.toMap();
+        } finally {
+          signal?.dispose();
+        }
+      case 'queryWithBundle':
+        final signalId = args!['cancellationSignal'] as String?;
+        final signal =
+            signalId == null ? null : CancellationSignal.fromId(signalId);
+        try {
+          final result = await queryWithBundle(
+            args['uri'] as String,
+            _asList(args['projection']),
+            _asMap(args['queryArgs']),
+            signal,
+          );
+          return result?.toMap();
+        } finally {
+          signal?.dispose();
+        }
+      case 'refresh':
+        final signalId = args!['cancellationSignal'] as String?;
+        final signal =
+            signalId == null ? null : CancellationSignal.fromId(signalId);
+        try {
+          return refresh(
+            args['uri'] as String,
+            _asMap(args['extras']),
+            signal,
+          );
+        } finally {
+          signal?.dispose();
+        }
+      case 'shutdown':
+        return shutdown();
+      case 'uncanonicalize':
+        return uncanonicalize(args!['url'] as String);
+      case 'update':
+        return update(
+          args!['uri'] as String,
+          args['values'] as ContentValues?,
+          args['selection'] as String?,
+          _asList(args['selectionArgs']),
+        );
+      case 'updateWithExtras':
+        return updateWithExtras(
+          args!['uri'] as String,
+          args['values'] as ContentValues?,
+          _asMap(args['extras']),
+        );
       default:
         throw PlatformException(
           code: 'unimplemented',
@@ -1109,6 +1219,27 @@ abstract class AndroidContentProvider {
     return '${objectRuntimeType(this, 'AndroidContentProvider')}($authority)';
   }
 
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_complete
+  static const int TRIM_MEMORY_COMPLETE = 80;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_moderate
+  static const int TRIM_MEMORY_MODERATE = 60;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_background
+  static const int TRIM_MEMORY_BACKGROUND = 40;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_ui_hidden
+  static const int TRIM_MEMORY_UI_HIDDEN = 20;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_running_critical
+  static const int TRIM_MEMORY_RUNNING_CRITICAL = 15;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_running_low
+  static const int TRIM_MEMORY_RUNNING_LOW = 10;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ComponentCallbacks2#trim_memory_running_moderate
+  static const int TRIM_MEMORY_RUNNING_MODERATE = 5;
+
   // applyBatch(authority: String, operations: ArrayList<ContentProviderOperation!>): Array<ContentProviderResult!>
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#applybatch
   //
@@ -1119,41 +1250,37 @@ abstract class AndroidContentProvider {
   //
   //
 
-  // attachInfo(context: Context!, info: ProviderInfo!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#attachinfo
-  //
-  // @native, not exposed.
-  //
-  //
-
   /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#bulkinsert
-  Future<int> bulkInsert(String uri, List<ContentValues> values);
+  Future<int> bulkInsert(String uri, List<ContentValues> values) async {
+    for (final value in values) {
+      await insert(uri, value);
+    }
+    return values.length;
+  }
 
-  /// Call a provider-defined method.
-  /// This can be used to implement interfaces that are cheaper and/or unnatural for a table-like model.
-  ///
-  /// WARNING: The framework does no permission checking on this entry into the content provider
-  /// besides the basic ability for the application to get access to the provider at all.
-  /// For example, it has no idea whether the call being executed may read or write data in
-  /// the provider, so can't enforce those individual permissions.
-  /// Any implementation of this method must do its own permission checks on incoming calls
-  /// to make sure they are allowed.
-  ///
-  /// --- References ---
-  ///
   /// call(method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#call_1
-  Future<BundleMap?> call(String method, String? arg, BundleMap? extras);
+  Future<BundleMap?> call(String method, String? arg, BundleMap? extras) async {
+    return null;
+  }
 
   /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#call
   Future<BundleMap?> callWithAuthority(
-      String authority, String method, String? arg, BundleMap? extras);
+    String authority,
+    String method,
+    String? arg,
+    BundleMap? extras,
+  ) async {
+    return call(method, arg, extras);
+  }
 
   /// canonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#call(kotlin.String,%20kotlin.String,%20kotlin.String,%20android.os.Bundle)
-  Future<String?> canonicalize(String url);
+  Future<String?> canonicalize(String url) async {
+    return null;
+  }
 
   /// Reset the identity of the incoming IPC on the current thread.
   ///
@@ -1165,40 +1292,60 @@ abstract class AndroidContentProvider {
   /// Returns an opaque token that can be used to restore the original calling identity by passing
   /// it to [restoreCallingIdentity].
   ///
+  /// Supported starting from Android Q, returns `null` on lower versions.
+  ///
   /// --- References ---
   ///
   /// clearCallingIdentity(): ContentProvider.CallingIdentity
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#clearcallingidentity
   @native
-  Future<CallingIdentity> clearCallingIdentity() async {
+  @requiresApiOrReturnsNull(29)
+  Future<CallingIdentity?> clearCallingIdentity() async {
     final result =
         await _methodChannel.invokeMethod<String>('clearCallingIdentity');
-    return CallingIdentity.fromId(result!);
+    return result == null ? null : CallingIdentity.fromId(result);
   }
 
   /// delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete
   Future<int> delete(
-      String uri, String? selection, List<String>? selectionArgs);
+    String uri,
+    String? selection,
+    List<String>? selectionArgs,
+  );
 
   /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete_1
-  Future<int> deleteWithExtras(String uri, BundleMap? extras);
+  Future<int> deleteWithExtras(String uri, BundleMap? extras) async {
+    if (extras == null) {
+      return delete(uri, null, null);
+    }
+    return delete(
+      uri,
+      extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
+      _asList(extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
+    );
+  }
 
   /// dump(fd: FileDescriptor!, writer: PrintWriter!, args: Array<String!>!): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#dump
-  Future<String> dump(List<String> args);
+  Future<String> dump(List<String>? args) async {
+    return 'nothing to dump';
+  }
 
   // getCallingAttributionSource(): AttributionSource?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingattributionsource
   //
-  // @native, not exposed.
+  // Not exposed - it's not easy.
   //
   //
 
+  /// Supported starting from Android Q, returns `null` on lower versions.
+  ///
   /// getCallingAttributionTag(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingattributiontag
   @native
+  @requiresApiOrReturnsNull(30)
   Future<String?> getCallingAttributionTag() async {
     return _methodChannel.invokeMethod<String>('getCallingAttributionTag');
   }
@@ -1206,6 +1353,7 @@ abstract class AndroidContentProvider {
   /// getCallingPackage(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingpackage
   @native
+  @requiresApiOrReturnsNull(19)
   Future<String?> getCallingPackage() async {
     return _methodChannel.invokeMethod<String>('getCallingPackage');
   }
@@ -1213,36 +1361,46 @@ abstract class AndroidContentProvider {
   /// getCallingPackageUnchecked(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingpackageunchecked
   @native
+  @requiresApiOrReturnsNull(30)
   Future<String?> getCallingPackageUnchecked() async {
     return _methodChannel.invokeMethod<String>('getCallingPackageUnchecked');
   }
 
-  // getContext(): Context?
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcontext
+  // getPathPermissions(): Array<PathPermission!>?
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#getpathpermissions
   //
-  // @native, not exposed.
+  // setPathPermissions(permissions: Array<PathPermission!>?): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#setpathpermissions
+  //
+  // getReadPermission(): String?
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#getreadpermission
+  //
+  // getWritePermission(): String?
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#getwritepermission
+  //
+  // setReadPermission(permission: String?): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#setreadpermission
+  //
+  // setWritePermission(permission: String?): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#setwritepermission
+  //
+  // Not exposed.
+  // It's not clear what is the use case for them.
   //
   //
-
-  /// getPathPermissions(): Array<PathPermission!>?
-  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getpathpermissions
-  Future<List<PathPermission>?> getPathPermissions();
-
-  /// getReadPermission(): String?
-  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getreadpermission
-  Future<String?> getReadPermission();
 
   /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getstreamtypes
-  Future<List<String>?> getStreamTypes(String uri, String mimeTypeFilter);
+  Future<List<String>?> getStreamTypes(
+    String uri,
+    String mimeTypeFilter,
+  ) async {
+    return null;
+  }
 
   /// getType(uri: Uri): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#gettype
   Future<String?> getType(String uri);
-
-  /// getWritePermission(): String?
-  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getwritepermission
-  Future<String?> getWritePermission();
 
   /// insert(uri: Uri, values: ContentValues?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert
@@ -1251,7 +1409,12 @@ abstract class AndroidContentProvider {
   /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert_1
   Future<String?> insertWithExtras(
-      String uri, ContentValues? values, BundleMap? extras);
+    String uri,
+    ContentValues? values,
+    BundleMap? extras,
+  ) {
+    return insert(uri, values);
+  }
 
   /// onCallingPackageChanged(): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#oncallingpackagechanged
@@ -1278,60 +1441,49 @@ abstract class AndroidContentProvider {
 
   /// onLowMemory(): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
-  Future<void> onLowMemory();
+  void onLowMemory() {}
 
   /// onTrimMemory(level: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
-  Future<void> onTrimMemory(int level);
+  void onTrimMemory(int level) {}
 
   // openAssetFile(uri: Uri, mode: String): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openassetfile
   //
-  // @native, not exposed.
-  //
-  //
-
   // openAssetFile(uri: Uri, mode: String, signal: CancellationSignal?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openassetfile_1
   //
-  // @native, not exposed.
+  // TODO: consider implementing
   //
   //
 
   /// openFile(uri: Uri, mode: String): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile
-  Future<String?> openFile(String uri, String mode);
+  Future<String?> openFile(String uri, String mode) async {
+    return null;
+  }
 
   /// openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile_1
   Future<String?> openFileWithSignal(
     String uri,
     String mode,
-    CancellationSignal cancellationSignal,
-  );
+    CancellationSignal? cancellationSignal,
+  ) async {
+    return openFile(uri, mode);
+  }
 
   // openPipeHelper(uri: Uri, mimeType: String, opts: Bundle?, args: T?, func: ContentProvider.PipeDataWriter<T>): ParcelFileDescriptor
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openpipehelper
   //
-  // @native, not exposed.
-  //
-  // TODO: consider exposing writeDataToPipe to support writing as stream from dart
-  // For example see https://android.googlesource.com/platform/development/+/4779ab6f9aa4d6b691f051e069ffac31475f850a/samples/NotePad/src/com/example/android/notepad/NotePadProvider.java
-  //
-  //
-
   // openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#opentypedassetfile
   //
-  // @native, not exposed.
-  //
-  //
-
   // openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?, signal: CancellationSignal?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#opentypedassetfile_1
   //
-  // @native, not exposed.
-  //
+  // TODO: consider implementing writeDataToPipe to support writing as stream from dart
+  // For example see https://android.googlesource.com/platform/development/+/4779ab6f9aa4d6b691f051e069ffac31475f850a/samples/NotePad/src/com/example/android/notepad/NotePadProvider.java
   //
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
@@ -1353,7 +1505,9 @@ abstract class AndroidContentProvider {
     List<String>? selectionArgs,
     String? sortOrder,
     CancellationSignal? cancellationSignal,
-  );
+  ) async {
+    return query(uri, projection, selection, selectionArgs, sortOrder);
+  }
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
@@ -1362,7 +1516,36 @@ abstract class AndroidContentProvider {
     List<String>? projection,
     BundleMap? queryArgs,
     CancellationSignal? cancellationSignal,
-  );
+  ) async {
+    if (queryArgs == null) {
+      return queryWithSignal(
+        uri,
+        projection,
+        null,
+        null,
+        null,
+        cancellationSignal,
+      );
+    }
+
+    // if client doesn't supply an SQL sort order argument, attempt to build one from
+    // QUERY_ARG_SORT* arguments.
+    var sortClause =
+        queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SORT_ORDER] as String?;
+    if (sortClause == null &&
+        queryArgs.containsKey(AndroidContentResolver.QUERY_ARG_SORT_COLUMNS)) {
+      sortClause = AndroidContentResolver.createSqlSortClause(queryArgs);
+    }
+
+    return queryWithSignal(
+      uri,
+      projection,
+      queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
+      _asList(queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
+      sortClause,
+      cancellationSignal,
+    );
+  }
 
   /// refresh(uri: Uri!, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#refresh
@@ -1370,30 +1553,34 @@ abstract class AndroidContentProvider {
     String uri,
     BundleMap? extras,
     CancellationSignal? cancellationSignal,
-  );
-
-  // requireContext(): Context
-  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#requirecontext
-  //
-  // The `getContext` is not exposed.
-  //
-  // Also, the plugin is initialized in `onCreate`, i.e. this would be possible to be called only
-  // when the context is already available.
-  //
-  //
+  ) async {
+    return false;
+  }
 
   /// restoreCallingIdentity(identity: ContentProvider.CallingIdentity): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#restorecallingidentity
   @native
-  Future<void> restoreCallingIdentity(CallingIdentity identity);
+  @requiresApiOrReturnsNull(29)
+  Future<void> restoreCallingIdentity(CallingIdentity identity) {
+    return _methodChannel.invokeMethod<String>('restoreCallingIdentity', {
+      'identity': identity.id,
+    });
+  }
 
   /// shutdown(): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#shutdown
-  Future<void> shutdown();
+  Future<void> shutdown() async {
+    debugPrint(
+      "implement ContentProvider shutdown() to make sure all database "
+      "connections are gracefully shutdown",
+    );
+  }
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#uncanonicalize
-  Future<String?> uncanonicalize(String url);
+  Future<String?> uncanonicalize(String url) async {
+    return url;
+  }
 
   /// update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update
@@ -1410,7 +1597,17 @@ abstract class AndroidContentProvider {
     String uri,
     ContentValues? values,
     BundleMap? extras,
-  );
+  ) async {
+    if (extras == null) {
+      return update(uri, values, null, null);
+    }
+    return update(
+      uri,
+      values,
+      extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
+      _asList(extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
+    );
+  }
 }
 
 /// Detailed description of a specific MIME type, including an icon and label that describe the type
@@ -1485,8 +1682,7 @@ abstract class ContentObserver extends Interoperable {
   final MethodChannel _methodChannel;
 
   Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
-    final BundleMap? args =
-        (methodCall.arguments as Map?)?.cast<String, Object?>();
+    final BundleMap? args = _asMap<String, Object?>(methodCall.arguments);
     switch (methodCall.method) {
       case 'onChange':
         final uri = args!['uri'] as String?;
@@ -1496,7 +1692,7 @@ abstract class ContentObserver extends Interoperable {
           args['flags'] as int?,
         );
       case 'onChangeUris':
-        final uris = args!['uris'] as List<String>;
+        final uris = _asList<String>(args!['uris'])!;
         return onChangeUris(
           args['selfChange'] as bool,
           uris,
@@ -1608,6 +1804,142 @@ class AndroidContentResolver {
     _pluginMethodCodec,
   );
 
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#scheme_android_resource
+  static const String SCHEME_ANDROID_RESOURCE = "android.resource";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#scheme_content
+  static const String SCHEME_CONTENT = "content";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#scheme_file
+  static const String SCHEME_FILE = "file";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#extra_size
+  static const String EXTRA_SIZE = "android.content.extra.SIZE";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#extra_refresh_supported
+  static const String EXTRA_REFRESH_SUPPORTED =
+      "android.content.extra.REFRESH_SUPPORTED";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sql_selection
+  static const String QUERY_ARG_SQL_SELECTION =
+      "android:query-arg-sql-selection";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sql_selection_args
+  static const String QUERY_ARG_SQL_SELECTION_ARGS =
+      "android:query-arg-sql-selection-args";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sql_sort_order
+  static const String QUERY_ARG_SQL_SORT_ORDER =
+      "android:query-arg-sql-sort-order";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sql_group_by
+  static const String QUERY_ARG_SQL_GROUP_BY = "android:query-arg-sql-group-by";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sql_having
+  static const String QUERY_ARG_SQL_HAVING = "android:query-arg-sql-having";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sql_limit
+  static const String QUERY_ARG_SQL_LIMIT = "android:query-arg-sql-limit";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sort_columns
+  static const String QUERY_ARG_SORT_COLUMNS = "android:query-arg-sort-columns";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sort_direction
+  static const String QUERY_ARG_SORT_DIRECTION =
+      "android:query-arg-sort-direction";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sort_collation
+  static const String QUERY_ARG_SORT_COLLATION =
+      "android:query-arg-sort-collation";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_sort_locale
+  static const String QUERY_ARG_SORT_LOCALE = "android:query-arg-sort-locale";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_group_columns
+  static const String QUERY_ARG_GROUP_COLUMNS =
+      "android:query-arg-group-columns";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#extra_honored_args
+  static const String EXTRA_HONORED_ARGS = "android.content.extra.HONORED_ARGS";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_sort_direction_ascending
+  static const int QUERY_SORT_DIRECTION_ASCENDING = 0;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_sort_direction_descending
+  static const int QUERY_SORT_DIRECTION_DESCENDING = 1;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_offset
+  static const String QUERY_ARG_OFFSET = "android:query-arg-offset";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_arg_limit
+  static const String QUERY_ARG_LIMIT = "android:query-arg-limit";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#extra_total_count
+  static const String EXTRA_TOTAL_COUNT = "android.content.extra.TOTAL_COUNT";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#cursor_item_base_type
+  static const String CURSOR_ITEM_BASE_TYPE = "vnd.android.cursor.item";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#cursor_dir_base_type
+  static const String CURSOR_DIR_BASE_TYPE = "vnd.android.cursor.dir";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#any_cursor_item_type
+  static const String ANY_CURSOR_ITEM_TYPE = "vnd.android.cursor.item/*";
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notify_sync_to_network
+  static const int NOTIFY_SYNC_TO_NETWORK = 1 << 0;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notify_skip_notify_for_descendants
+  static const int NOTIFY_SKIP_NOTIFY_FOR_DESCENDANTS = 1 << 1;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notify_insert
+  static const int NOTIFY_INSERT = 1 << 2;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notify_update
+  static const int NOTIFY_UPDATE = 1 << 3;
+
+  /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notify_delete
+  static const int NOTIFY_DELETE = 1 << 4;
+
+  /// Returns structured sort args formatted as an SQL sort clause.
+  @internal
+  static String createSqlSortClause(BundleMap queryArgs) {
+    final columns = _asList<String>(queryArgs[QUERY_ARG_SORT_COLUMNS]);
+    if (columns == null || columns.isEmpty) {
+      throw ArgumentError("Can't create sort clause without columns.");
+    }
+
+    String query = columns.join(', ');
+
+    const _collatorPrimary = 0;
+    const _collatorSecondary = 1;
+
+    // Interpret PRIMARY and SECONDARY collation strength as no-case collation based
+    // on their javadoc descriptions.
+    final collation = queryArgs[QUERY_ARG_SORT_COLLATION] as int?;
+    if (collation == _collatorPrimary || collation == _collatorSecondary) {
+      query += " COLLATE NOCASE";
+    }
+
+    final sortDir = queryArgs[QUERY_ARG_SORT_DIRECTION] as int?;
+    if (sortDir != null) {
+      switch (sortDir) {
+        case QUERY_SORT_DIRECTION_ASCENDING:
+          query += " ASC";
+          break;
+        case QUERY_SORT_DIRECTION_DESCENDING:
+          query += " DESC";
+          break;
+        default:
+          throw ArgumentError(
+            "Unsupported sort direction value. "
+            "See ContentResolver documentation for details.",
+          );
+      }
+    }
+    return query;
+  }
+
   // acquireContentProviderClient(uri: Uri): ContentProviderClient?
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#acquirecontentproviderclient
   //
@@ -1664,7 +1996,11 @@ class AndroidContentResolver {
   /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call_1
   Future<BundleMap?> callWithAuthority(
-      String authority, String method, String? arg, BundleMap? extras) {
+    String authority,
+    String method,
+    String? arg,
+    BundleMap? extras,
+  ) {
     return _methodChannel
         .invokeMapMethod<String, Object?>('callWithAuthority', {
       'authority': authority,
@@ -1685,7 +2021,10 @@ class AndroidContentResolver {
   /// delete(uri: Uri, arg: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete
   Future<int> delete(
-      String uri, String? selection, List<String>? selectionArgs) async {
+    String uri,
+    String? selection,
+    List<String>? selectionArgs,
+  ) async {
     final result = await _methodChannel.invokeMethod<int>('delete', {
       'uri': uri,
       'selection': selection,
@@ -1696,7 +2035,10 @@ class AndroidContentResolver {
 
   /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete_1
-  Future<int> deleteWithExtras(String uri, BundleMap? extras) async {
+  Future<int> deleteWithExtras(
+    String uri,
+    BundleMap? extras,
+  ) async {
     final result = await _methodChannel.invokeMethod<int>('deleteWithExtras', {
       'uri': uri,
       'extras': extras,
@@ -1743,7 +2085,10 @@ class AndroidContentResolver {
   /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert_1
   Future<String?> insertWithExtras(
-      String uri, ContentValues? values, BundleMap? extras) {
+    String uri,
+    ContentValues? values,
+    BundleMap? extras,
+  ) {
     return _methodChannel.invokeMethod<String>('insertWithExtras', {
       'uri': uri,
       'values': values,
@@ -1753,8 +2098,12 @@ class AndroidContentResolver {
 
   /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
-  Future<Uint8List?> loadThumbnail(String uri, int width, int height,
-      CancellationSignal? cancellationSignal) async {
+  Future<Uint8List?> loadThumbnail(
+    String uri,
+    int width,
+    int height,
+    CancellationSignal? cancellationSignal,
+  ) async {
     final result =
         await _methodChannel.invokeMethod<Uint8List>('loadThumbnail', {
       'uri': uri,

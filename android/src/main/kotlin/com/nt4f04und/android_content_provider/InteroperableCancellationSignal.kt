@@ -3,6 +3,7 @@ package com.nt4f04und.android_content_provider
 import android.os.CancellationSignal
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMethodCodec
+import java.lang.Exception
 import java.util.*
 
 class InteroperableCancellationSignal(
@@ -39,8 +40,13 @@ class InteroperableCancellationSignal(
         }
         signal!!.setOnCancelListener {
             methodChannel?.setMethodCallHandler(null)
-            methodChannel?.invokeMethod("cancel", null)
-            destroy()
+            try {
+                methodChannel?.invokeMethod("cancel", null)
+            } catch (ex: Exception) {
+                // Swallow exceptions in case the channel has not been initialized yet.
+            } finally {
+                destroy()
+            }
         }
     }
 

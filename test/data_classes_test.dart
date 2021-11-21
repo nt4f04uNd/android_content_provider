@@ -18,44 +18,6 @@ void main() {
     });
   });
 
-  group('PathPermission', () {
-    const kReadPermission = 'com.example.permission.READ';
-    const kWritePermission = 'com.example.permission.WRITE';
-
-    PathPermission createPathPermission({
-      String readPermission = kReadPermission,
-      String writePermission = kWritePermission,
-    }) =>
-        PathPermission(
-          readPermission: readPermission,
-          writePermission: writePermission,
-        );
-
-    test('constructor and properties', () {
-      final pathPermission = createPathPermission();
-      expect(pathPermission.readPermission, kReadPermission);
-      expect(pathPermission.writePermission, kWritePermission);
-    });
-
-    test('toString', () {
-      final pathPermission = createPathPermission();
-      expect(pathPermission.toString(),
-          'PathPermission(read: $kReadPermission, write: $kWritePermission)');
-    });
-
-    test('serialization and equality', () {
-      final pathPermission = createPathPermission();
-      expect(pathPermission, createPathPermission());
-      expect(pathPermission, PathPermission.fromMap(pathPermission.toMap()));
-      expect(() => pathPermission.toMap()..['key'] = 'value',
-          throwsUnsupportedError);
-      expect(pathPermission,
-          isNot(createPathPermission(readPermission: 'other_permission')));
-      expect(pathPermission,
-          isNot(createPathPermission(writePermission: 'other_permission')));
-    });
-  });
-
   group('ContentValues ', () {
     const someKey = 'some_key';
     const someValue = 'some_value';

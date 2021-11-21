@@ -61,17 +61,14 @@ class _MyAppState extends State<MyApp> {
 }
 
 @pragma('vm:entry-point')
-void androidContentProviderEntrypoint() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  AndroidContentProviderPlugin.setUp(contentProviders: [
-    Test(
-      'com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider',
-    )
-  ]);
+void exampleContentProviderEntrypoint() async {
+  Test();
 }
 
 class Test extends AndroidContentProvider {
-  Test(String authority) : super(authority);
+  Test()
+      : super(
+            'com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider');
 
   @override
   Future<int> bulkInsert(String uri, List<ContentValues> values) {
@@ -112,14 +109,8 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<String> dump(List<String> args) {
+  Future<String> dump(List<String>? args) {
     // TODO: implement dump
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<List<PathPermission>> getPathPermissions() {
-    // TODO: implement getPathPermissions
     throw UnimplementedError();
   }
 
@@ -180,7 +171,7 @@ class Test extends AndroidContentProvider {
 
   @override
   Future<String> openFileWithSignal(
-      String uri, String mode, CancellationSignal cancellationSignal) {
+      String uri, String mode, CancellationSignal? cancellationSignal) {
     // TODO: implement openFileWithSignal
     throw UnimplementedError();
   }
