@@ -80,6 +80,20 @@ class CallingIdentity extends Interoperable {
 
 /// This class is used to store a set of values that the content provider/resolver can process
 /// https://developer.android.com/reference/android/content/ContentValues
+///
+/// This class allows storing Java types that are not presented in Dart:
+///  * Byte
+///  * Short
+///  * Integer
+///  * Float
+///
+/// They are still represented by corresponding Dart types `int` and `double`, and when put
+/// into [ContentValues], keep being stored as is, without overflowing.
+///
+/// For example, if `500` is passed into `putByte`, it will remain `500` on `getByte`.
+///
+/// But, when sent over native channels, these values are converted to actual Java types,
+/// and therefore an overflow will happen.
 class ContentValues {
   /// Creates [ContentValues].
   ContentValues() : _map = <String, Object?>{};
