@@ -20,7 +20,7 @@ internal class SynchronousMethodChannel(val methodChannel: MethodChannel) {
         var value: Any? = null
         var error: Exception? = null
         val lock = Object()
-        handler.postDelayed({
+        handler.post {
             methodChannel.invokeMethod(method, arguments, object : MethodChannel.Result {
                 override fun success(result: Any?) {
                     value = result
@@ -40,7 +40,7 @@ internal class SynchronousMethodChannel(val methodChannel: MethodChannel) {
                     synchronized(lock) { lock.notify() }
                 }
             })
-        }, 1000)
+        }
         try {
             synchronized(lock) {
                 while (!completed) {

@@ -1991,7 +1991,11 @@ class AndroidContentResolver {
   /// call(uri: Uri, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call
   Future<BundleMap?> call(
-      String uri, String method, String? arg, BundleMap? extras) {
+    String uri,
+    String method,
+    String? arg,
+    BundleMap? extras,
+  ) {
     return _methodChannel.invokeMapMethod<String, Object?>('call', {
       'uri': uri,
       'method': method,

@@ -129,16 +129,24 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
                 getContentValuesMapField(values).set(values, map)
                 return values
             }
-            BYTE.toByte(),
-            SHORT.toByte(),
+            BYTE.toByte() -> {
+                return buffer!!.int.toShort().toByte()
+            }
+            SHORT.toByte()  -> {
+                return buffer!!.int.toShort()
+            }
             INTEGER.toByte() -> {
                 return buffer!!.int
             }
             LONG.toByte() -> {
                 return buffer!!.long
             }
-            FLOAT.toByte(),
+            FLOAT.toByte()  -> {
+                readAlignment(buffer, 8)
+                return buffer!!.double.toFloat()
+            }
             DOUBLE.toByte() -> {
+                readAlignment(buffer, 8)
                 return buffer!!.double
             }
             else -> {
