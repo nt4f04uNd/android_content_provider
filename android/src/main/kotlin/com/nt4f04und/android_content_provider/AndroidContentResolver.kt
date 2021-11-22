@@ -74,7 +74,7 @@ internal class AndroidContentResolver(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                         result.success(contentResolver.canonicalize(getUri(args!!["url"])))
                     } else {
-                        throwApiLevelError(Build.VERSION_CODES.KITKAT)
+                        result.success(null)
                     }
                 }
                 "delete" -> {
@@ -108,7 +108,7 @@ internal class AndroidContentResolver(
                                 "icon" to bitmapToBytes(info.icon.loadDrawable(context).toBitmap()),
                                 "contentDescription" to info.contentDescription))
                     } else {
-                        throwApiLevelError(Build.VERSION_CODES.Q)
+                        result.success(null)
                     }
                 }
                 "insert" -> {
@@ -230,7 +230,7 @@ internal class AndroidContentResolver(
                                 mapToBundle(asMap(args["extras"])),
                                 interoperableSignal?.signal))
                     } else {
-                        throwApiLevelError(Build.VERSION_CODES.O)
+                        result.success(false)
                     }
                 }
                 "registerContentObserver" -> {

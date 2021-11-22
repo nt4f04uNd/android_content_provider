@@ -88,14 +88,21 @@ class InteroperableCursor(
                         cursor.setNotificationUris(contentResolver, getUris(args!!["uris"])!!)
                         result.success(null)
                     } else {
-                        throwApiLevelError(Build.VERSION_CODES.Q)
+                        result.success(null)
                     }
                 }
                 "getNotificationUri" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                         result.success(cursor.notificationUri)
                     } else {
-                        throwApiLevelError(Build.VERSION_CODES.KITKAT)
+                        result.success(null)
+                    }
+                }
+                "getNotificationUris" -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        result.success(cursor.notificationUris)
+                    } else {
+                        result.success(null)
                     }
                 }
                 "setExtras" -> {
@@ -103,7 +110,7 @@ class InteroperableCursor(
                         cursor.extras = mapToBundle(asMap(args!!["extras"]))
                         result.success(null)
                     } else {
-                        throwApiLevelError(Build.VERSION_CODES.M)
+                        result.success(null)
                     }
                 }
                 "getExtras" -> {

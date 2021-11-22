@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
@@ -124,7 +125,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
             val args = call.arguments as Map<String, Any>?
             when (call.method) {
                 "clearCallingIdentity" -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         val identity = clearCallingIdentity()
                         val id = RegistrableCallingIdentity.register(identity)
                         result.success(id)
@@ -133,28 +134,28 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                     }
                 }
                 "getCallingAttributionTag" -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         result.success(callingAttributionTag)
                     } else {
                         result.success(null)
                     }
                 }
                 "getCallingPackage" -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
                         result.success(callingPackage)
                     } else {
                         result.success(null)
                     }
                 }
                 "getCallingPackageUnchecked" -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         result.success(callingPackageUnchecked)
                     } else {
                         result.success(null)
                     }
                 }
                 "restoreCallingIdentity" -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         val identityId = args!!["identity"] as String
                         val identity = RegistrableCallingIdentity.unregister(identityId)
                         restoreCallingIdentity(identity!!)
@@ -299,14 +300,14 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         }
     }
 
-    private fun openFileFromPath(path: String?, mode: String) : ParcelFileDescriptor {
+    private fun openFileFromPath(path: String?, mode: String): ParcelFileDescriptor {
         val file: File
         if (path != null) {
             file = File(path)
         } else {
             throw FileNotFoundException(path)
         }
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode(mode))
         } else {
             ParcelFileDescriptor.open(file, translateModeStringToPosix(mode))
@@ -362,22 +363,17 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
 
         val cursor = DataMatrixCursor(columnNames, data, rowCount)
         notificationUris?.let {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 cursor.setNotificationUris(context!!.contentResolver, it)
             } else {
-                if (it.isEmpty()) {
-                    cursor.setNotificationUri(context!!.contentResolver, null)
-                } else {
+                if (it.isNotEmpty()) {
                     cursor.setNotificationUri(context!!.contentResolver, it.first())
                 }
             }
         }
-        extras?.let {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                cursor.extras = it
-            }
-            // else silently no-op
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            cursor.extras = extras
+        } // else silently no-op
         return cursor
     }
 

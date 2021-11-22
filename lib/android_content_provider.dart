@@ -35,27 +35,39 @@ class _Native {
 }
 
 /// Used to indicate that some method requires a certain Android API
-/// level to work and that method will return `null`, if called on lower API versions.
-//
-// ignore: camel_case_types
-class requiresApiOrReturnsNull {
-  /// Creates [requiresApiOrReturnsNull].
-  const requiresApiOrReturnsNull(this.apiLevel);
+/// level to work, and that method will do nothing and return `null` (or `false`,
+/// if returned value indicates whether the operation was successful),
+/// if called on lower API versions.
+class RequiresApiOrNoop {
+  /// Creates [RequiresApiOrNoop].
+  const RequiresApiOrNoop(this.apiLevel);
 
   /// Required API level.
   final int apiLevel;
 }
 
 /// Used to indicate that some method requires a certain Android API
-/// level to work and that method will throw if called on lower API versions.
-//
-// ignore: camel_case_types
-class requiresApiOrThrows {
-  /// Creates [requiresApiOrThrows].
-  const requiresApiOrThrows(this.apiLevel);
+/// level to work, and that method will throw if called on lower API versions.
+class RequiresApiOrThrows {
+  /// Creates [RequiresApiOrThrows].
+  const RequiresApiOrThrows(this.apiLevel);
 
   /// Required API level.
   final int apiLevel;
+}
+
+/// Used to indicate that some method requires a certain Android API
+/// level to work, and that method will do something else, specified in the [message],
+/// if called on lower API versions.
+class RequiresApiOr {
+  /// Creates [RequiresApiOr].
+  const RequiresApiOr(this.apiLevel, this.message);
+
+  /// Required API level.
+  final int apiLevel;
+
+  /// What this method will do on lower API versions.
+  final String message;
 }
 
 /// Map type alias that is used in place of Android Bundle
@@ -567,20 +579,24 @@ class NativeCursor extends Interoperable {
     });
   }
 
+  @RequiresApiOrNoop(29)
   Future<void> setNotificationUris(List<String> uris) {
     return _methodChannel.invokeMethod<bool>('setNotificationUris', {
       'uris': uris,
     });
   }
 
+  @RequiresApiOrNoop(19)
   Future<String?> getNotificationUri() {
     return _methodChannel.invokeMethod<String>('getNotificationUri');
   }
 
+  @RequiresApiOrNoop(29)
   Future<List<String>?> getNotificationUris() {
     return _methodChannel.invokeListMethod<String>('getNotificationUris');
   }
 
+  @RequiresApiOrNoop(23)
   Future<void> setExtras(BundleMap extras) {
     return _methodChannel.invokeMethod<bool>('setExtras', {
       'extras': extras,
@@ -797,9 +813,11 @@ abstract class CursorData {
   Object? get payload;
 
   /// A map with extra values.
+  @RequiresApiOr(29, "If set on lower API, only the first entry will be used")
   final List<String>? notificationUris;
 
   /// A map with extra values.
+  @RequiresApiOrNoop(23)
   BundleMap? extras;
 
   /// Converts the cursor to map to send it to platform.
@@ -1320,7 +1338,7 @@ abstract class AndroidContentProvider {
   /// clearCallingIdentity(): ContentProvider.CallingIdentity
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#clearcallingidentity
   @native
-  @requiresApiOrReturnsNull(29)
+  @RequiresApiOrNoop(29)
   Future<CallingIdentity?> clearCallingIdentity() async {
     final result =
         await _methodChannel.invokeMethod<String>('clearCallingIdentity');
@@ -1366,7 +1384,7 @@ abstract class AndroidContentProvider {
   /// getCallingAttributionTag(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingattributiontag
   @native
-  @requiresApiOrReturnsNull(30)
+  @RequiresApiOrNoop(30)
   Future<String?> getCallingAttributionTag() async {
     return _methodChannel.invokeMethod<String>('getCallingAttributionTag');
   }
@@ -1374,7 +1392,7 @@ abstract class AndroidContentProvider {
   /// getCallingPackage(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingpackage
   @native
-  @requiresApiOrReturnsNull(19)
+  @RequiresApiOrNoop(19)
   Future<String?> getCallingPackage() async {
     return _methodChannel.invokeMethod<String>('getCallingPackage');
   }
@@ -1382,7 +1400,7 @@ abstract class AndroidContentProvider {
   /// getCallingPackageUnchecked(): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingpackageunchecked
   @native
-  @requiresApiOrReturnsNull(30)
+  @RequiresApiOrNoop(30)
   Future<String?> getCallingPackageUnchecked() async {
     return _methodChannel.invokeMethod<String>('getCallingPackageUnchecked');
   }
@@ -1581,7 +1599,7 @@ abstract class AndroidContentProvider {
   /// restoreCallingIdentity(identity: ContentProvider.CallingIdentity): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#restorecallingidentity
   @native
-  @requiresApiOrReturnsNull(29)
+  @RequiresApiOrNoop(29)
   Future<void> restoreCallingIdentity(CallingIdentity identity) {
     return _methodChannel.invokeMethod<String>('restoreCallingIdentity', {
       'identity': identity.id,
@@ -2023,6 +2041,7 @@ class AndroidContentResolver {
 
   /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call_1
+  @RequiresApiOrThrows(29)
   Future<BundleMap?> callWithAuthority({
     required String authority,
     required String method,
@@ -2040,6 +2059,7 @@ class AndroidContentResolver {
 
   /// canonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#canonicalize
+  @RequiresApiOrNoop(19)
   Future<String?> canonicalize({required String url}) {
     return _methodChannel.invokeMethod<String>('canonicalize', {
       'url': url,
@@ -2063,6 +2083,7 @@ class AndroidContentResolver {
 
   /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete_1
+  @RequiresApiOrThrows(30)
   Future<int> deleteWithExtras({
     required String uri,
     BundleMap? extras,
@@ -2096,7 +2117,8 @@ class AndroidContentResolver {
 
   /// getTypeInfo(mimeType: String): ContentResolver.MimeTypeInfo
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettypeinfo
-  Future<MimeTypeInfo> getTypeInfo({required String mimeType}) async {
+  @RequiresApiOrNoop(29)
+  Future<MimeTypeInfo?> getTypeInfo({required String mimeType}) async {
     final result =
         await _methodChannel.invokeMapMethod<String, Object?>('getTypeInfo', {
       'mimeType': mimeType,
@@ -2115,6 +2137,7 @@ class AndroidContentResolver {
 
   /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert_1
+  @RequiresApiOrThrows(30)
   Future<String?> insertWithExtras({
     required String uri,
     ContentValues? values,
@@ -2129,6 +2152,7 @@ class AndroidContentResolver {
 
   /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
+  @RequiresApiOrThrows(29)
   Future<Uint8List?> loadThumbnail({
     required String uri,
     required int width,
@@ -2153,7 +2177,7 @@ class AndroidContentResolver {
   Future<void> notifyChange({
     required String uri,
     ContentObserver? observer,
-    int? flags,
+    @RequiresApiOrNoop(24) int? flags,
   }) {
     return _methodChannel.invokeMethod<void>('notifyChange', {
       'uri': uri,
@@ -2171,6 +2195,7 @@ class AndroidContentResolver {
 
   /// notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_3
+  @RequiresApiOrThrows(30)
   Future<void> notifyChangeWithList({
     required List<String> uris,
     ContentObserver? observer,
@@ -2265,6 +2290,7 @@ class AndroidContentResolver {
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_2
+  @RequiresApiOrThrows(26)
   Future<NativeCursor?> queryWithBundle({
     required String uri,
     List<String>? projection,
@@ -2283,6 +2309,7 @@ class AndroidContentResolver {
 
   /// refresh(uri: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#refresh
+  @RequiresApiOrNoop(26)
   Future<bool> refresh({
     required String uri,
     BundleMap? extras,
@@ -2319,6 +2346,7 @@ class AndroidContentResolver {
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#uncanonicalize
+  @RequiresApiOrNoop(19)
   Future<String?> uncanonicalize({required String url}) {
     return _methodChannel.invokeMethod<String>('uncanonicalize', {
       'url': url,
@@ -2352,6 +2380,7 @@ class AndroidContentResolver {
 
   /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update_1
+  @RequiresApiOrThrows(30)
   Future<int> updateWithExtras({
     required String uri,
     ContentValues? values,
