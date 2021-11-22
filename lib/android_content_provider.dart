@@ -1996,7 +1996,10 @@ class AndroidContentResolver {
 
   /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#bulkinsert
-  Future<int> bulkInsert(String uri, List<ContentValues> values) async {
+  Future<int> bulkInsert({
+    required String uri,
+    required List<ContentValues> values,
+  }) async {
     final result = await _methodChannel.invokeMethod<int>('bulkInsert', {
       'uri': uri,
       'values': values,
@@ -2006,12 +2009,12 @@ class AndroidContentResolver {
 
   /// call(uri: Uri, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call
-  Future<BundleMap?> call(
-    String uri,
-    String method,
+  Future<BundleMap?> call({
+    required String uri,
+    required String method,
     String? arg,
     BundleMap? extras,
-  ) {
+  }) {
     return _methodChannel.invokeMapMethod<String, Object?>('call', {
       'uri': uri,
       'method': method,
@@ -2022,12 +2025,12 @@ class AndroidContentResolver {
 
   /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#call_1
-  Future<BundleMap?> callWithAuthority(
-    String authority,
-    String method,
+  Future<BundleMap?> callWithAuthority({
+    required String authority,
+    required String method,
     String? arg,
     BundleMap? extras,
-  ) {
+  }) {
     return _methodChannel
         .invokeMapMethod<String, Object?>('callWithAuthority', {
       'authority': authority,
@@ -2039,7 +2042,7 @@ class AndroidContentResolver {
 
   /// canonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#canonicalize
-  Future<String?> canonicalize(String url) {
+  Future<String?> canonicalize({required String url}) {
     return _methodChannel.invokeMethod<String>('canonicalize', {
       'url': url,
     });
@@ -2047,11 +2050,11 @@ class AndroidContentResolver {
 
   /// delete(uri: Uri, arg: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete
-  Future<int> delete(
-    String uri,
+  Future<int> delete({
+    required String uri,
     String? selection,
     List<String>? selectionArgs,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<int>('delete', {
       'uri': uri,
       'selection': selection,
@@ -2062,10 +2065,10 @@ class AndroidContentResolver {
 
   /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete_1
-  Future<int> deleteWithExtras(
-    String uri,
+  Future<int> deleteWithExtras({
+    required String uri,
     BundleMap? extras,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<int>('deleteWithExtras', {
       'uri': uri,
       'extras': extras,
@@ -2075,7 +2078,10 @@ class AndroidContentResolver {
 
   /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getstreamtypes
-  Future<List<String>?> getStreamTypes(String uri, String mimeTypeFilter) {
+  Future<List<String>?> getStreamTypes({
+    required String uri,
+    required String mimeTypeFilter,
+  }) {
     return _methodChannel.invokeListMethod<String>('getStreamTypes', {
       'uri': uri,
       'mimeTypeFilter': mimeTypeFilter,
@@ -2084,7 +2090,7 @@ class AndroidContentResolver {
 
   /// getType(uri: Uri): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettype
-  Future<String?> getType(String uri) {
+  Future<String?> getType({required String uri}) {
     return _methodChannel.invokeMethod<String>('getType', {
       'uri': uri,
     });
@@ -2092,7 +2098,7 @@ class AndroidContentResolver {
 
   /// getTypeInfo(mimeType: String): ContentResolver.MimeTypeInfo
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#gettypeinfo
-  Future<MimeTypeInfo> getTypeInfo(String mimeType) async {
+  Future<MimeTypeInfo> getTypeInfo({required String mimeType}) async {
     final result =
         await _methodChannel.invokeMapMethod<String, Object?>('getTypeInfo', {
       'mimeType': mimeType,
@@ -2102,7 +2108,7 @@ class AndroidContentResolver {
 
   /// insert(uri: Uri, values: ContentValues?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert
-  Future<String?> insert(String uri, ContentValues? values) {
+  Future<String?> insert({required String uri, ContentValues? values}) {
     return _methodChannel.invokeMethod<String>('insert', {
       'uri': uri,
       'values': values,
@@ -2111,11 +2117,11 @@ class AndroidContentResolver {
 
   /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#insert_1
-  Future<String?> insertWithExtras(
-    String uri,
+  Future<String?> insertWithExtras({
+    required String uri,
     ContentValues? values,
     BundleMap? extras,
-  ) {
+  }) {
     return _methodChannel.invokeMethod<String>('insertWithExtras', {
       'uri': uri,
       'values': values,
@@ -2125,12 +2131,12 @@ class AndroidContentResolver {
 
   /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
-  Future<Uint8List?> loadThumbnail(
-    String uri,
-    int width,
-    int height,
+  Future<Uint8List?> loadThumbnail({
+    required String uri,
+    required int width,
+    required int height,
     CancellationSignal? cancellationSignal,
-  ) async {
+  }) async {
     final result =
         await _methodChannel.invokeMethod<Uint8List>('loadThumbnail', {
       'uri': uri,
@@ -2146,11 +2152,11 @@ class AndroidContentResolver {
   ///
   /// notifyChange(uri: Uri, observer: ContentObserver?, flags: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_2
-  Future<void> notifyChange(
-    String uri,
-    ContentObserver? observer, [
+  Future<void> notifyChange({
+    required String uri,
+    ContentObserver? observer,
     int? flags,
-  ]) {
+  }) {
     return _methodChannel.invokeMethod<void>('notifyChange', {
       'uri': uri,
       'observer': observer?.id,
@@ -2167,11 +2173,11 @@ class AndroidContentResolver {
 
   /// notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_3
-  Future<void> notifyChangeWithList(
-    List<String> uris,
+  Future<void> notifyChangeWithList({
+    required List<String> uris,
     ContentObserver? observer,
-    int flags,
-  ) {
+    required int flags,
+  }) {
     return _methodChannel.invokeMethod<void>('notifyChangeWithList', {
       'uris': uris,
       'observer': observer?.id,
@@ -2221,13 +2227,13 @@ class AndroidContentResolver {
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query
-  Future<NativeCursor?> query(
-    String uri,
+  Future<NativeCursor?> query({
+    required String uri,
     List<String>? projection,
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<String>('query', {
       'uri': uri,
       'projection': projection,
@@ -2240,14 +2246,14 @@ class AndroidContentResolver {
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_1
-  Future<NativeCursor?> queryWithSignal(
-    String uri,
+  Future<NativeCursor?> queryWithSignal({
+    required String uri,
     List<String>? projection,
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
     CancellationSignal? cancellationSignal,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<String>('query', {
       'uri': uri,
       'projection': projection,
@@ -2261,12 +2267,12 @@ class AndroidContentResolver {
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_2
-  Future<NativeCursor?> queryWithBundle(
-    String uri,
+  Future<NativeCursor?> queryWithBundle({
+    required String uri,
     List<String>? projection,
     BundleMap? queryArgs,
     CancellationSignal? cancellationSignal,
-  ) async {
+  }) async {
     final result =
         await _methodChannel.invokeMethod<String>('queryWithBundle', {
       'uri': uri,
@@ -2279,11 +2285,11 @@ class AndroidContentResolver {
 
   /// refresh(uri: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#refresh
-  Future<bool> refresh(
-    String uri,
+  Future<bool> refresh({
+    required String uri,
     BundleMap? extras,
     CancellationSignal? cancellationSignal,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<bool>('refresh', {
       'uri': uri,
       'extras': extras,
@@ -2294,11 +2300,11 @@ class AndroidContentResolver {
 
   /// registerContentObserver(uri: Uri, notifyForDescendants: Boolean, observer: ContentObserver): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#registercontentobserver
-  Future<void> registerContentObserver(
-    String uri,
-    bool notifyForDescendants,
-    ContentObserver observer,
-  ) {
+  Future<void> registerContentObserver({
+    required String uri,
+    required ContentObserver observer,
+    bool notifyForDescendants = false,
+  }) {
     return _methodChannel.invokeMethod<void>('registerContentObserver', {
       'uri': uri,
       'notifyForDescendants': notifyForDescendants,
@@ -2315,7 +2321,7 @@ class AndroidContentResolver {
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#uncanonicalize
-  Future<String?> uncanonicalize(String url) {
+  Future<String?> uncanonicalize({required String url}) {
     return _methodChannel.invokeMethod<String>('uncanonicalize', {
       'url': url,
     });
@@ -2331,12 +2337,12 @@ class AndroidContentResolver {
 
   /// update(uri: Uri, values: ContentValues?, arg: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update
-  Future<int> update(
-    String uri,
+  Future<int> update({
+    required String uri,
     ContentValues? values,
     String? selection,
     List<String>? selectionArgs,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<int>('update', {
       'uri': uri,
       'values': values,
@@ -2348,11 +2354,11 @@ class AndroidContentResolver {
 
   /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update_1
-  Future<int> updateWithExtras(
-    String uri,
+  Future<int> updateWithExtras({
+    required String uri,
     ContentValues? values,
     BundleMap? extras,
-  ) async {
+  }) async {
     final result = await _methodChannel.invokeMethod<int>('updateWithExtras', {
       'uri': uri,
       'values': values,
