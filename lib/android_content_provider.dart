@@ -466,7 +466,7 @@ class NativeCursor extends Interoperable {
   ///  * FIELD_TYPE_FLOAT
   ///  * FIELD_TYPE_STRING
   ///  * FIELD_TYPE_BLOB
-  static List<Type> supportedFieldTypes = [
+  static const supportedFieldTypes = <Type>[
     Null,
     int,
     double,
@@ -616,8 +616,11 @@ class NativeCursorGetBatch {
 
   final List<List<Object?>> _operations = [];
 
-  /// A list to store indexes of results to cast List<Object?> to List<String>.
+  /// A list to store indexes of results to cast `List<Object?>` to `List<String>`.
   final List<int> _stringListIndexes = [];
+
+  /// A list to store indexes of [getType] results to convert them to actual types.
+  final List<int> _getTypeIndexes = [];
 
   void _add(String method, [Object? argument]) {
     _operations.add([method, argument]);
@@ -631,6 +634,9 @@ class NativeCursorGetBatch {
     });
     for (final index in _stringListIndexes) {
       result![index] = _asList<String>(result[index])!;
+    }
+    for (final index in _getTypeIndexes) {
+      result![index] = NativeCursor.supportedFieldTypes[result[index] as int];
     }
     return result!;
   }
@@ -746,6 +752,7 @@ class NativeCursorGetBatch {
 
   /// Will return a [Type] that is one of the types listed in [NativeCursor.supportedFieldTypes].
   NativeCursorGetBatch getType(int columnIndex) {
+    _getTypeIndexes.add(_operations.length);
     _add('getType', columnIndex);
     return this;
   }

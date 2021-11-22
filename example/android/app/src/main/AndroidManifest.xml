@@ -32,7 +32,7 @@
             android:value="2" />
 
        <provider
-           android:name="com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider"
+           android:name=".ExampleAndroidContentProvider"
            android:authorities="com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider"
            android:exported="true" />
     </application>

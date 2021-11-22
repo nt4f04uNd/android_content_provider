@@ -62,123 +62,39 @@ class _MyAppState extends State<MyApp> {
 
 @pragma('vm:entry-point')
 void exampleContentProviderEntrypoint() async {
-  Test();
+  ExampleAndroidContentProvider();
 }
 
-class Test extends AndroidContentProvider {
-  Test()
-      : super(
-            'com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider');
-
-  @override
-  Future<int> bulkInsert(String uri, List<ContentValues> values) {
-    // TODO: implement bulkInsert
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<BundleMap?> call(String method, String? arg, BundleMap? extras) {
-    // TODO: implement call
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<BundleMap?> callWithAuthority(
-      String authority, String method, String? arg, BundleMap? extras) {
-    // TODO: implement callWithAuthority
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String?> canonicalize(String url) {
-    // TODO: implement canonicalize
-    throw UnimplementedError();
-  }
+class ExampleAndroidContentProvider extends AndroidContentProvider {
+  ExampleAndroidContentProvider() : super('com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider');
 
   @override
   Future<int> delete(
-      String uri, String? selection, List<String>? selectionArgs) {
-    // TODO: implement delete
-    throw UnimplementedError();
+    String uri,
+    String? selection,
+    List<String>? selectionArgs,
+  ) async {
+    return 0;
   }
 
   @override
-  Future<int> deleteWithExtras(String uri, BundleMap? extras) {
-    // TODO: implement deleteWithExtras
-    throw UnimplementedError();
+  Future<String?> getType(String uri) async {
+    return null;
   }
 
   @override
-  Future<String> dump(List<String>? args) {
-    // TODO: implement dump
-    throw UnimplementedError();
+  Future<String?> insert(String uri, ContentValues? values) async {
+    return null;
   }
 
   @override
-  Future<String> getReadPermission() {
-    // TODO: implement getReadPermission
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<List<String>?> getStreamTypes(String uri, String mimeTypeFilter) {
-    // TODO: implement getStreamTypes
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String?> getType(String uri) {
-    // TODO: implement getType
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String> getWritePermission() {
-    // TODO: implement getWritePermission
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String?> insert(String uri, ContentValues? values) {
-    // TODO: implement insert
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String?> insertWithExtras(
-      String uri, ContentValues? values, BundleMap? extras) {
-    // TODO: implement insertWithExtras
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> onLowMemory() {
-    // TODO: implement onLowMemory
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> onTrimMemory(int level) {
-    // TODO: implement onTrimMemory
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String> openFile(String uri, String mode) {
-    // TODO: implement openFile
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String> openFileWithSignal(
-      String uri, String mode, CancellationSignal? cancellationSignal) {
-    // TODO: implement openFileWithSignal
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<CursorData> query(String uri, List<String>? projection,
-      String? selection, List<String>? selectionArgs, String? sortOrder) async {
+  Future<CursorData?> query(
+    String uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+  ) async {
     final cursorData = MatrixCursorData(
       columnNames: ['column_1', 'column_2', 'column_3'],
       notificationUris: [
@@ -196,60 +112,13 @@ class Test extends AndroidContentProvider {
   }
 
   @override
-  Future<CursorData> queryWithBundle(String uri, List<String>? projection,
-      BundleMap? queryArgs, CancellationSignal? cancellationSignal) {
-    // TODO: implement queryWithBundle
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<CursorData> queryWithSignal(
-      String uri,
-      List<String>? projection,
-      String? selection,
-      List<String>? selectionArgs,
-      String? sortOrder,
-      CancellationSignal? cancellationSignal) {
-    // TODO: implement queryWithSignal
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<bool> refresh(
-      String uri, BundleMap? extras, CancellationSignal? cancellationSignal) {
-    // TODO: implement refresh
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> restoreCallingIdentity(CallingIdentity identity) {
-    // TODO: implement restoreCallingIdentity
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> shutdown() {
-    // TODO: implement shutdown
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<String?> uncanonicalize(String url) {
-    // TODO: implement uncanonicalize
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<int> update(String uri, ContentValues? values, String? selection,
-      List<String>? selectionArgs) {
-    // TODO: implement update
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<int> updateWithExtras(
-      String uri, ContentValues? values, BundleMap? extras) {
-    // TODO: implement updateWithExtras
-    throw UnimplementedError();
+  Future<int> update(
+    String uri,
+    ContentValues? values,
+    String? selection,
+    List<String>? selectionArgs,
+  ) async {
+    return 0;
   }
 }
+
