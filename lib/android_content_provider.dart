@@ -882,7 +882,7 @@ class MatrixCursorDataRowBuilder {
   /// Returns this builder to support chaining.
   ///
   /// Throws [CursorRangeError] if you try to add too many values
-  MatrixCursorDataRowBuilder add(Object columnValue) {
+  MatrixCursorDataRowBuilder add(Object? columnValue) {
     if (_index == _endIndex) {
       throw CursorRangeError("No more columns left.");
     }
@@ -1069,65 +1069,65 @@ abstract class AndroidContentProvider {
     switch (methodCall.method) {
       case 'bulkInsert':
         return bulkInsert(
-          args!['uri'] as String,
-          _asList(args['values'])!,
+          uri: args!['uri'] as String,
+          values: _asList(args['values'])!,
         );
       case 'call':
         return call(
-          args!['method'] as String,
-          args['arg'] as String?,
-          args['extras'] as BundleMap?,
+          method: args!['method'] as String,
+          arg: args['arg'] as String?,
+          extras: args['extras'] as BundleMap?,
         );
       case 'callWithAuthority':
         return callWithAuthority(
-          args!['authority'] as String,
-          args['method'] as String,
-          args['arg'] as String?,
-          args['extras'] as BundleMap?,
+          authority: args!['authority'] as String,
+          method: args['method'] as String,
+          arg: args['arg'] as String?,
+          extras: args['extras'] as BundleMap?,
         );
       case 'canonicalize':
-        return canonicalize(args!['url'] as String);
+        return canonicalize(url: args!['url'] as String);
       case 'delete':
         return delete(
-          args!['uri'] as String,
-          args['selection'] as String?,
-          _asList(args['selectionArgs']),
+          uri: args!['uri'] as String,
+          selection: args['selection'] as String?,
+          selectionArgs: _asList(args['selectionArgs']),
         );
       case 'deleteWithExtras':
         return deleteWithExtras(
-          args!['uri'] as String,
-          args['extras'] as BundleMap?,
+          uri: args!['uri'] as String,
+          extras: args['extras'] as BundleMap?,
         );
       case 'dump':
-        return dump(_asList(args!['args']));
+        return dump(args: _asList(args!['args']));
       case 'getStreamTypes':
         return getStreamTypes(
-          args!['uri'] as String,
-          args['mimeTypeFilter'] as String,
+          uri: args!['uri'] as String,
+          mimeTypeFilter: args['mimeTypeFilter'] as String,
         );
       case 'getType':
-        return getType(args!['uri'] as String);
+        return getType(uri: args!['uri'] as String);
       case 'insert':
         return insert(
-          args!['uri'] as String,
-          args['values'] as ContentValues?,
+          uri: args!['uri'] as String,
+          values: args['values'] as ContentValues?,
         );
       case 'insertWithExtras':
         return insertWithExtras(
-          args!['uri'] as String,
-          args['values'] as ContentValues?,
-          args['extras'] as BundleMap?,
+          uri: args!['uri'] as String,
+          values: args['values'] as ContentValues?,
+          extras: args['extras'] as BundleMap?,
         );
       case 'onCallingPackageChanged':
         return onCallingPackageChanged();
       case 'onLowMemory':
         return onLowMemory();
       case 'onTrimMemory':
-        return onTrimMemory(args!['level'] as int);
+        return onTrimMemory(level: args!['level'] as int);
       case 'openFile':
         return openFile(
-          args!['uri'] as String,
-          args['mode'] as String,
+          uri: args!['uri'] as String,
+          mode: args['mode'] as String,
         );
       case 'openFileWithSignal':
         final signalId = args!['cancellationSignal'] as String?;
@@ -1135,20 +1135,20 @@ abstract class AndroidContentProvider {
             signalId == null ? null : CancellationSignal.fromId(signalId);
         try {
           return openFileWithSignal(
-            args['uri'] as String,
-            args['mode'] as String,
-            signal,
+            uri: args['uri'] as String,
+            mode: args['mode'] as String,
+            cancellationSignal: signal,
           );
         } finally {
           signal?.dispose();
         }
       case 'query':
         final result = await query(
-          args!['uri'] as String,
-          _asList(args['projection']),
-          args['selection'] as String?,
-          _asList(args['selectionArgs']),
-          args['sortOrder'] as String?,
+          uri: args!['uri'] as String,
+          projection: _asList(args['projection']),
+          selection: args['selection'] as String?,
+          selectionArgs: _asList(args['selectionArgs']),
+          sortOrder: args['sortOrder'] as String?,
         );
         return result?.toMap();
       case 'queryWithSignal':
@@ -1157,12 +1157,12 @@ abstract class AndroidContentProvider {
             signalId == null ? null : CancellationSignal.fromId(signalId);
         try {
           final result = await queryWithSignal(
-            args['uri'] as String,
-            _asList(args['projection']),
-            args['selection'] as String?,
-            _asList(args['selectionArgs']),
-            args['sortOrder'] as String?,
-            signal,
+            uri: args['uri'] as String,
+            projection: _asList(args['projection']),
+            selection: args['selection'] as String?,
+            selectionArgs: _asList(args['selectionArgs']),
+            sortOrder: args['sortOrder'] as String?,
+            cancellationSignal: signal,
           );
           return result?.toMap();
         } finally {
@@ -1174,10 +1174,10 @@ abstract class AndroidContentProvider {
             signalId == null ? null : CancellationSignal.fromId(signalId);
         try {
           final result = await queryWithBundle(
-            args['uri'] as String,
-            _asList(args['projection']),
-            _asMap(args['queryArgs']),
-            signal,
+            uri: args['uri'] as String,
+            projection: _asList(args['projection']),
+            queryArgs: _asMap(args['queryArgs']),
+            cancellationSignal: signal,
           );
           return result?.toMap();
         } finally {
@@ -1189,9 +1189,9 @@ abstract class AndroidContentProvider {
             signalId == null ? null : CancellationSignal.fromId(signalId);
         try {
           return refresh(
-            args['uri'] as String,
-            _asMap(args['extras']),
-            signal,
+            uri: args['uri'] as String,
+            extras: _asMap(args['extras']),
+            cancellationSignal: signal,
           );
         } finally {
           signal?.dispose();
@@ -1199,19 +1199,19 @@ abstract class AndroidContentProvider {
       case 'shutdown':
         return shutdown();
       case 'uncanonicalize':
-        return uncanonicalize(args!['url'] as String);
+        return uncanonicalize(url: args!['url'] as String);
       case 'update':
         return update(
-          args!['uri'] as String,
-          args['values'] as ContentValues?,
-          args['selection'] as String?,
-          _asList(args['selectionArgs']),
+          uri: args!['uri'] as String,
+          values: args['values'] as ContentValues?,
+          selection: args['selection'] as String?,
+          selectionArgs: _asList(args['selectionArgs']),
         );
       case 'updateWithExtras':
         return updateWithExtras(
-          args!['uri'] as String,
-          args['values'] as ContentValues?,
-          _asMap(args['extras']),
+          uri: args!['uri'] as String,
+          values: args['values'] as ContentValues?,
+          extras: _asMap(args['extras']),
         );
       default:
         throw PlatformException(
@@ -1259,33 +1259,40 @@ abstract class AndroidContentProvider {
 
   /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#bulkinsert
-  Future<int> bulkInsert(String uri, List<ContentValues> values) async {
+  Future<int> bulkInsert({
+    required String uri,
+    required List<ContentValues> values,
+  }) async {
     for (final value in values) {
-      await insert(uri, value);
+      await insert(uri: uri, values: value);
     }
     return values.length;
   }
 
   /// call(method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#call_1
-  Future<BundleMap?> call(String method, String? arg, BundleMap? extras) async {
+  Future<BundleMap?> call({
+    required String method,
+    String? arg,
+    BundleMap? extras,
+  }) async {
     return null;
   }
 
   /// call(authority: String, method: String, arg: String?, extras: Bundle?): Bundle?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#call
-  Future<BundleMap?> callWithAuthority(
-    String authority,
-    String method,
+  Future<BundleMap?> callWithAuthority({
+    required String authority,
+    required String method,
     String? arg,
     BundleMap? extras,
-  ) async {
-    return call(method, arg, extras);
+  }) async {
+    return call(method: method, arg: arg, extras: extras);
   }
 
   /// canonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#call(kotlin.String,%20kotlin.String,%20kotlin.String,%20android.os.Bundle)
-  Future<String?> canonicalize(String url) async {
+  Future<String?> canonicalize({required String url}) async {
     return null;
   }
 
@@ -1315,28 +1322,30 @@ abstract class AndroidContentProvider {
 
   /// delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete
-  Future<int> delete(
-    String uri,
+  Future<int> delete({
+    required String uri,
     String? selection,
     List<String>? selectionArgs,
-  );
+  });
 
   /// delete(uri: Uri, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete_1
-  Future<int> deleteWithExtras(String uri, BundleMap? extras) async {
+  Future<int> deleteWithExtras({required String uri, BundleMap? extras}) async {
     if (extras == null) {
-      return delete(uri, null, null);
+      return delete(uri: uri);
     }
     return delete(
-      uri,
-      extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
-      _asList(extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
+      uri: uri,
+      selection:
+          extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
+      selectionArgs:
+          _asList(extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
     );
   }
 
   /// dump(fd: FileDescriptor!, writer: PrintWriter!, args: Array<String!>!): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#dump
-  Future<String> dump(List<String>? args) async {
+  Future<String> dump({List<String>? args}) async {
     return 'nothing to dump';
   }
 
@@ -1398,29 +1407,29 @@ abstract class AndroidContentProvider {
 
   /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getstreamtypes
-  Future<List<String>?> getStreamTypes(
-    String uri,
-    String mimeTypeFilter,
-  ) async {
+  Future<List<String>?> getStreamTypes({
+    required String uri,
+    required String mimeTypeFilter,
+  }) async {
     return null;
   }
 
   /// getType(uri: Uri): String?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#gettype
-  Future<String?> getType(String uri);
+  Future<String?> getType({required String uri});
 
   /// insert(uri: Uri, values: ContentValues?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert
-  Future<String?> insert(String uri, ContentValues? values);
+  Future<String?> insert({required String uri, ContentValues? values});
 
   /// insert(uri: Uri, values: ContentValues?, extras: Bundle?): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#insert_1
-  Future<String?> insertWithExtras(
-    String uri,
+  Future<String?> insertWithExtras({
+    required String uri,
     ContentValues? values,
     BundleMap? extras,
-  ) {
-    return insert(uri, values);
+  }) {
+    return insert(uri: uri, values: values);
   }
 
   /// onCallingPackageChanged(): Unit
@@ -1452,7 +1461,7 @@ abstract class AndroidContentProvider {
 
   /// onTrimMemory(level: Int): Unit
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#onlowmemory
-  void onTrimMemory(int level) {}
+  void onTrimMemory({required int level}) {}
 
   // openAssetFile(uri: Uri, mode: String): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#openassetfile
@@ -1466,18 +1475,18 @@ abstract class AndroidContentProvider {
 
   /// openFile(uri: Uri, mode: String): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile
-  Future<String?> openFile(String uri, String mode) async {
+  Future<String?> openFile({required String uri, required String mode}) async {
     return null;
   }
 
   /// openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#openfile_1
-  Future<String?> openFileWithSignal(
-    String uri,
-    String mode,
+  Future<String?> openFileWithSignal({
+    required String uri,
+    required String mode,
     CancellationSignal? cancellationSignal,
-  ) async {
-    return openFile(uri, mode);
+  }) async {
+    return openFile(uri: uri, mode: mode);
   }
 
   // openPipeHelper(uri: Uri, mimeType: String, opts: Bundle?, args: T?, func: ContentProvider.PipeDataWriter<T>): ParcelFileDescriptor
@@ -1495,43 +1504,46 @@ abstract class AndroidContentProvider {
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query
-  Future<CursorData?> query(
-    String uri,
+  Future<CursorData?> query({
+    required String uri,
     List<String>? projection,
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
-  );
+  });
 
   /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_1
-  Future<CursorData?> queryWithSignal(
-    String uri,
+  Future<CursorData?> queryWithSignal({
+    required String uri,
     List<String>? projection,
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
     CancellationSignal? cancellationSignal,
-  ) async {
-    return query(uri, projection, selection, selectionArgs, sortOrder);
+  }) async {
+    return query(
+      uri: uri,
+      projection: projection,
+      selection: selection,
+      selectionArgs: selectionArgs,
+      sortOrder: sortOrder,
+    );
   }
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
-  Future<CursorData?> queryWithBundle(
-    String uri,
+  Future<CursorData?> queryWithBundle({
+    required String uri,
     List<String>? projection,
     BundleMap? queryArgs,
     CancellationSignal? cancellationSignal,
-  ) async {
+  }) async {
     if (queryArgs == null) {
       return queryWithSignal(
-        uri,
-        projection,
-        null,
-        null,
-        null,
-        cancellationSignal,
+        uri: uri,
+        projection: projection,
+        cancellationSignal: cancellationSignal,
       );
     }
 
@@ -1545,22 +1557,24 @@ abstract class AndroidContentProvider {
     }
 
     return queryWithSignal(
-      uri,
-      projection,
-      queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
-      _asList(queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
-      sortClause,
-      cancellationSignal,
+      uri: uri,
+      projection: projection,
+      selection:
+          queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
+      selectionArgs: _asList(
+          queryArgs[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
+      sortOrder: sortClause,
+      cancellationSignal: cancellationSignal,
     );
   }
 
   /// refresh(uri: Uri!, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#refresh
-  Future<bool> refresh(
-    String uri,
+  Future<bool> refresh({
+    required String uri,
     BundleMap? extras,
     CancellationSignal? cancellationSignal,
-  ) async {
+  }) async {
     return false;
   }
 
@@ -1585,34 +1599,36 @@ abstract class AndroidContentProvider {
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#uncanonicalize
-  Future<String?> uncanonicalize(String url) async {
+  Future<String?> uncanonicalize({required String url}) async {
     return url;
   }
 
   /// update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String!>?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update
-  Future<int> update(
-    String uri,
+  Future<int> update({
+    required String uri,
     ContentValues? values,
     String? selection,
     List<String>? selectionArgs,
-  );
+  });
 
   /// update(uri: Uri, values: ContentValues?, extras: Bundle?): Int
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update_1
-  Future<int> updateWithExtras(
-    String uri,
+  Future<int> updateWithExtras({
+    required String uri,
     ContentValues? values,
     BundleMap? extras,
-  ) async {
+  }) async {
     if (extras == null) {
-      return update(uri, values, null, null);
+      return update(uri: uri, values: values);
     }
     return update(
-      uri,
-      values,
-      extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
-      _asList(extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
+      uri: uri,
+      values: values,
+      selection:
+          extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION] as String?,
+      selectionArgs:
+          _asList(extras[AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS]),
     );
   }
 }
