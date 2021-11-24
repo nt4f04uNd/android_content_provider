@@ -26,10 +26,16 @@ void main() {
 
     ContentValues createValues() {
       final values = ContentValues();
-      values.putBool('bool_key', false);
       values.putString('string_key', someValue);
-      values.putInt('int_key', 1);
+      values.putByte('byte_key', 0);
+      values.putShort('byte_key', 0);
+      values.putInt('int_key', 0);
+      values.putLong('long_key', 0);
+      values.putFloat('float_key', 0.5);
+      values.putDouble('double_key', 0.5);
+      values.putBool('bool_key', false);
       values.putBytes('bytes_key', uint8list);
+      values.putNull('null_key');
       return values;
     }
 
@@ -56,7 +62,7 @@ void main() {
       final values = createValues();
       expect(
         values.toString(),
-        '{bool_key: false, string_key: some_value, int_key: 1, bytes_key: [1, 2, 3]}',
+        '{string_key: some_value, byte_key: 0, int_key: 0, long_key: 0, float_key: 0.5, double_key: 0.5, bool_key: false, bytes_key: [1, 2, 3], null_key: null}',
       );
     });
 
@@ -75,20 +81,35 @@ void main() {
       final values = createValues();
       expect(
         values.keys.toList(),
-        ['bool_key', 'string_key', 'int_key', 'bytes_key'],
+        [
+          'string_key',
+          'byte_key',
+          'int_key',
+          'long_key',
+          'float_key',
+          'double_key',
+          'bool_key',
+          'bytes_key',
+          'null_key'
+        ],
       );
       expect(
         values.values.toList(),
         [
-          false,
           'some_value',
-          1,
-          [1, 2, 3]
+          0,
+          0,
+          0,
+          0.5,
+          0.5,
+          false,
+          [1, 2, 3],
+          null
         ],
       );
       expect(
         values.entries.toList().toString(),
-        '[MapEntry(bool_key: false), MapEntry(string_key: some_value), MapEntry(int_key: 1), MapEntry(bytes_key: [1, 2, 3])]',
+        '[MapEntry(string_key: some_value), MapEntry(byte_key: 0), MapEntry(int_key: 0), MapEntry(long_key: 0), MapEntry(float_key: 0.5), MapEntry(double_key: 0.5), MapEntry(bool_key: false), MapEntry(bytes_key: [1, 2, 3]), MapEntry(null_key: null)]',
       );
     });
 

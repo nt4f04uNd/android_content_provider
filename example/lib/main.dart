@@ -10,11 +10,12 @@ void main() async {
   // final  test =  await c.bulkInsert(uri, ContentValues());
   // print(test)
   final cursor = await c.query(
-    'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider',
-    null,
-    null,
-    null,
-    null,
+    uri:
+        'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider',
+    projection: null,
+    selection: null,
+    selectionArgs: null,
+    sortOrder: null,
   );
   if (cursor != null) {
     try {
@@ -66,7 +67,9 @@ void exampleContentProviderEntrypoint() async {
 }
 
 class ExampleAndroidContentProvider extends AndroidContentProvider {
-  ExampleAndroidContentProvider() : super('com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider');
+  ExampleAndroidContentProvider()
+      : super(
+            'com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider');
 
   @override
   Future<int> delete(
@@ -121,4 +124,3 @@ class ExampleAndroidContentProvider extends AndroidContentProvider {
     return 0;
   }
 }
-

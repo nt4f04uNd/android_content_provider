@@ -5,9 +5,8 @@ import android.net.Uri
 import android.os.Bundle
 import io.flutter.plugin.common.StandardMessageCodec
 import java.io.ByteArrayOutputStream
-import java.lang.reflect.Field
 import java.nio.ByteBuffer
-import java.util.*
+import java.nio.charset.Charset
 
 /**
  * The codec utilized to encode data back and forth between
@@ -19,6 +18,9 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
     companion object {
         val INSTANCE: AndroidContentProviderMessageCodec = AndroidContentProviderMessageCodec()
 
+        internal const val NULL = 0
+        internal const val TRUE = 1
+        internal const val FALSE = 2
         internal const val URI = 134
         internal const val BUNDLE = 133
         internal const val CONTENT_VALUES = 132
@@ -28,16 +30,8 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
         internal const val LONG = 4
         internal const val FLOAT = 131
         internal const val DOUBLE = 6
-    }
-
-    private fun getContentValuesMapField(values: ContentValues): Field {
-        val mapField = try {
-            values::class.java.getDeclaredField("mMap")
-        } catch (ex: NoSuchFieldException) {
-            values::class.java.getDeclaredField("mValues")
-        }
-        mapField.isAccessible = true
-        return mapField
+        internal const val STRING = 7
+        internal const val BYTE_ARRAY = 8
     }
 
     override fun writeValue(stream: ByteArrayOutputStream?, value: Any?) {
@@ -58,38 +52,55 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
                 stream!!.write(CONTENT_VALUES)
                 writeSize(stream, value.size())
                 @Suppress("UNCHECKED_CAST")
-                val map = getContentValuesMapField(value).get(value) as Map<String, Any?>
-                map.forEach { (key, value) ->
+                for (key in value.keySet()) {
+                    val contentValuesValue = value.get(key)
                     writeValue(stream, key);
-                    when (value) {
+                    when (contentValuesValue) {
+                        is String -> {
+                            stream.write(STRING)
+                            writeBytes(stream, contentValuesValue.toString().toByteArray())
+                        }
                         is Byte -> {
                             stream.write(BYTE)
-                            writeInt(stream, value.toInt())
+                            writeInt(stream, contentValuesValue.toInt())
                         }
                         is Short -> {
                             stream.write(SHORT)
-                            writeInt(stream, value.toInt())
+                            writeInt(stream, contentValuesValue.toInt())
                         }
                         is Int -> {
                             stream.write(INTEGER)
-                            writeInt(stream, value.toInt())
+                            writeInt(stream, contentValuesValue.toInt())
                         }
                         is Long -> {
                             stream.write(LONG)
-                            writeLong(stream, value.toLong())
+                            writeLong(stream, contentValuesValue.toLong())
                         }
                         is Float -> {
-                            stream.write(FLOAT);
-                            writeAlignment(stream, 8);
-                            writeDouble(stream, value.toDouble());
+                            stream.write(FLOAT)
+                            writeAlignment(stream, 8)
+                            writeDouble(stream, contentValuesValue.toDouble());
                         }
                         is Double -> {
-                            stream.write(DOUBLE);
-                            writeAlignment(stream, 8);
-                            writeDouble(stream, value.toDouble());
+                            stream.write(DOUBLE)
+                            writeAlignment(stream, 8)
+                            writeDouble(stream, contentValuesValue.toDouble())
+                        }
+                        true -> {
+                            stream.write(TRUE)
+                        }
+                        false -> {
+                            stream.write(FALSE)
+                        }
+                        is ByteArray -> {
+                            stream.write(BYTE_ARRAY)
+                            writeBytes(stream, contentValuesValue)
+                        }
+                        null -> {
+                            stream.write(NULL)
                         }
                         else -> {
-                            writeValue(stream, value)
+                            throw IllegalArgumentException("Wrong value in ContentValues")
                         }
                     }
                 }
@@ -121,33 +132,54 @@ class AndroidContentProviderMessageCodec : StandardMessageCodec() {
             }
             CONTENT_VALUES.toByte() -> {
                 val size = readSize(buffer)
-                val map: MutableMap<Any, Any> = HashMap()
+                val contentValues = ContentValues(size)
                 for (i in 0 until size) {
-                    map[readValue(buffer)] = readValue(buffer)
+                    val key = readValue(buffer) as String
+                    // taken from readValue, but put the value right away
+                    require(buffer!!.hasRemaining()) { "Message corrupted" }
+                    when (buffer.get()) {
+                        STRING.toByte() -> {
+                            val bytes = readBytes(buffer)
+                            contentValues.put(key, String(bytes, Charset.forName("UTF8")))
+                        }
+                        BYTE.toByte() -> {
+                            contentValues.put(key, buffer.int.toShort().toByte())
+                        }
+                        SHORT.toByte() -> {
+                            contentValues.put(key, buffer.int.toShort())
+                        }
+                        INTEGER.toByte() -> {
+                            contentValues.put(key, buffer.int)
+                        }
+                        LONG.toByte() -> {
+                            contentValues.put(key, buffer.long)
+                        }
+                        FLOAT.toByte() -> {
+                            readAlignment(buffer, 8)
+                            contentValues.put(key, buffer.double.toFloat())
+                        }
+                        DOUBLE.toByte() -> {
+                            readAlignment(buffer, 8)
+                            contentValues.put(key, buffer.double)
+                        }
+                        TRUE.toByte() -> {
+                            contentValues.put(key, true)
+                        }
+                        FALSE.toByte() -> {
+                            contentValues.put(key, false)
+                        }
+                        BYTE_ARRAY.toByte() -> {
+                            contentValues.put(key, readBytes(buffer))
+                        }
+                        NULL.toByte() -> {
+                            contentValues.putNull(key)
+                        }
+                        else -> {
+                            throw IllegalArgumentException("Wrong value in ContentValues")
+                        }
+                    }
                 }
-                val values = ContentValues::class.java.newInstance()
-                getContentValuesMapField(values).set(values, map)
-                return values
-            }
-            BYTE.toByte() -> {
-                return buffer!!.int.toShort().toByte()
-            }
-            SHORT.toByte()  -> {
-                return buffer!!.int.toShort()
-            }
-            INTEGER.toByte() -> {
-                return buffer!!.int
-            }
-            LONG.toByte() -> {
-                return buffer!!.long
-            }
-            FLOAT.toByte()  -> {
-                readAlignment(buffer, 8)
-                return buffer!!.double.toFloat()
-            }
-            DOUBLE.toByte() -> {
-                readAlignment(buffer, 8)
-                return buffer!!.double
+                return contentValues
             }
             else -> {
                 return super.readValueOfType(type, buffer)

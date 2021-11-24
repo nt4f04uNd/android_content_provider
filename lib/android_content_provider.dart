@@ -119,11 +119,22 @@ class ContentValues {
 
   @override
   bool operator ==(Object other) {
-    if (other.runtimeType != runtimeType) {
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType || other is! ContentValues) {
       return false;
     }
-    return other is ContentValues &&
-        mapEquals<Object?, Object?>(_map, other._map);
+    if (length != other.length) {
+      return false;
+    }
+    for (final String key in keys) {
+      if (!other.containsKey(key) ||
+          _maybeUnwrapValue(other._map[key]) != _maybeUnwrapValue(_map[key])) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @override
