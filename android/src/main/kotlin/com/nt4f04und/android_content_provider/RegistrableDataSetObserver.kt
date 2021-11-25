@@ -1,6 +1,8 @@
 package com.nt4f04und.android_content_provider
 
 import android.database.DataSetObserver
+import android.os.Handler
+import android.os.Looper
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMethodCodec
 import java.util.*
@@ -8,9 +10,9 @@ import java.util.*
 class RegistrableDataSetObserver private constructor(
         binaryMessenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString())
-    : Registrable<Interoperable.InteroperableEventChannel>(
+    : Registrable<Interoperable.InteroperableMethodChannel>(
         id,
-        InteroperableEventChannel(
+        InteroperableMethodChannel(
                 messenger = binaryMessenger,
                 classId = "${AndroidContentProviderPlugin.channelPrefix}/DataSetObserver",
                 id = id,
@@ -37,8 +39,8 @@ class RegistrableDataSetObserver private constructor(
     var observer: Observer? = null
     override val registry: Registry<RegistrableDataSetObserver>
         get() = staticRegistry
-    private val eventChannel
-        get() = channel
+    private val methodChannel
+        get() = channel?.channel
 
     init {
         observer = Observer(this)
@@ -50,12 +52,18 @@ class RegistrableDataSetObserver private constructor(
     }
 
     class Observer(private val registryObserver: RegistrableDataSetObserver) : DataSetObserver() {
+        private val handler = Handler(Looper.getMainLooper())
+
         override fun onChanged() {
-            registryObserver.eventChannel!!.sink!!.success("onChanged")
+            handler.post {
+                registryObserver.methodChannel?.invokeMethod("onChanged", null)
+            }
         }
 
         override fun onInvalidated() {
-            registryObserver.eventChannel!!.sink!!.success("onInvalidated")
+            handler.post {
+                registryObserver.methodChannel?.invokeMethod("onInvalidated", null)
+            }
         }
     }
 }

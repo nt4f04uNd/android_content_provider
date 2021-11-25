@@ -1847,18 +1847,18 @@ abstract class DataSetObserver extends Interoperable {
   /// Creates content observer.
   DataSetObserver() : this._(_uuid.v4());
   DataSetObserver._(this._id)
-      : _eventChannel = EventChannel('$_channelPrefix/DataSetObserver/$_id') {
-    _eventChannel.receiveBroadcastStream().listen(_handleEvent);
+      : _methodChannel = MethodChannel('$_channelPrefix/DataSetObserver/$_id') {
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 
   @override
   String get id => _id;
   final String _id;
 
-  final EventChannel _eventChannel;
+  final MethodChannel _methodChannel;
 
-  void _handleEvent(Object? event) async {
-    switch (event) {
+  Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
+    switch (methodCall.method) {
       case 'onChanged':
         return onChanged();
       case 'onInvalidated':
@@ -1866,7 +1866,7 @@ abstract class DataSetObserver extends Interoperable {
       default:
         throw PlatformException(
           code: 'unimplemented',
-          message: 'Invalid event: $event',
+          message: 'Method not implemented: ${methodCall.method}',
         );
     }
   }
