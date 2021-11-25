@@ -1279,8 +1279,6 @@ abstract class AndroidContentProvider {
         } finally {
           signal?.dispose();
         }
-      case 'shutdown':
-        return shutdown();
       case 'uncanonicalize':
         return uncanonicalize(args!['url'] as String);
       case 'update':
@@ -1657,14 +1655,15 @@ abstract class AndroidContentProvider {
     });
   }
 
-  /// shutdown(): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#shutdown
-  Future<void> shutdown() async {
-    debugPrint(
-      "implement ContentProvider shutdown() to make sure all database "
-      "connections are gracefully shutdown",
-    );
-  }
+
+  // shutdown(): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#shutdown
+  //
+  // Android docs say "Implement this to shut down the ContentProvider instance. You can then
+  // invoke this method in unit tests.".
+  // Seems pointless to be a part of the interface therefore.
+  //
+  //
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#uncanonicalize

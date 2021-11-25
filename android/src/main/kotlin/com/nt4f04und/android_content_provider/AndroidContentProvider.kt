@@ -462,10 +462,6 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     // restoreCallingIdentity
     //
 
-    override fun shutdown() {
-        invokeMethod("shutdown", null)
-    }
-
     override fun uncanonicalize(url: Uri): Uri? {
         return getUri(invokeMethod("uncanonicalize", mapOf(
                 "url" to url)))
