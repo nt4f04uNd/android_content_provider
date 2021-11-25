@@ -9,6 +9,7 @@ import 'package:test_api/src/expect/async_matcher.dart';
 // ignore: implementation_imports
 import 'package:test_api/src/expect/util/pretty_print.dart';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:android_content_provider/android_content_provider.dart';
 
@@ -115,8 +116,48 @@ void main() {
     expect(result, Stubs.number);
   });
 
-  testWidgets(
-      "ContentObservers report exceptions", (WidgetTester tester) async {});
+  testWidgets("ContentObserver reports exceptions",
+      (WidgetTester tester) async {
+    final completer = Completer();
+    final observer = TestContentObserver(
+      onChange: (bool selfChange, String? uri, int? flags) {
+        // Android seems to be always calling through `onChangeUris`.
+        fail('onChange is not expected to be called');
+        // Can't really test this, so test only onChangeUris.
+      },
+      onChangeUris: (bool selfChange, List<String> uris, int? flags) {
+        completer.complete();
+        final oldDebugPrint = debugPrint;
+        // Don't dump errors to console - we call takeException and what's being printed is just a log.
+        debugPrint = (String? message, {int? wrapWidth}) {};
+        try {
+          fail('dummy fail');
+        } finally {
+          Future.microtask(() {
+            debugPrint = oldDebugPrint;
+          });
+        }
+      },
+    );
+    await AndroidContentResolver.instance.registerContentObserver(
+      uri: providerUri,
+      observer: observer,
+    );
+    try {
+      await AndroidContentResolver.instance.notifyChange(
+        uri: providerUri,
+        flags: 1,
+      );
+      await completer.future;
+      final exception = tester.takeException();
+      expect(
+        exception,
+        isA<TestFailure>().having((e) => e.message, 'message', 'dummy fail'),
+      );
+    } finally {
+      await AndroidContentResolver.instance.unregisterContentObserver(observer);
+    }
+  });
 
   group("AndroidContentResolver", () {
     testWidgets("getTypeInfo", (WidgetTester tester) async {
@@ -140,13 +181,14 @@ void main() {
     //   expect(result, hasLength(greaterThan(100)));
     // });
 
-    testWidgets("ContentObservers and notifyChange work",
+    testWidgets("ContentObserver and notifyChange work",
         (WidgetTester tester) async {
       const flags = 1 | 2 | 4 | 8 | 16;
       int calledCounter = 0;
       bool notifyForDescendantsTest = false;
       final observer = TestContentObserver(
         onChange: (bool selfChange, String? uri, int? flags) {
+          // Android seems to be always calling through `onChangeUris`
           fail('onChange is not expected to be called');
         },
         onChangeUris: (bool selfChange, List<String> uris, int? flags) {
