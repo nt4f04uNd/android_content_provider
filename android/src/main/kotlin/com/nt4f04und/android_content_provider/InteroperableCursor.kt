@@ -65,20 +65,6 @@ class InteroperableCursor(
                     }
                     result.success(null)
                 }
-                "registerDataSetObserver" -> {
-                    val observerId = args!!["observer"] as String
-                    val registrableObserver = RegistrableDataSetObserver.register(binaryMessenger, observerId)
-                    cursor.registerDataSetObserver(registrableObserver.observer)
-                    result.success(null)
-                }
-                "unregisterDataSetObserver" -> {
-                    val observerId = args!!["observer"] as String
-                    val registrableObserver = RegistrableDataSetObserver.unregister(observerId)
-                    registrableObserver?.let {
-                        cursor.unregisterDataSetObserver(registrableObserver.observer)
-                    }
-                    result.success(null)
-                }
                 "setNotificationUri" -> {
                     cursor.setNotificationUri(contentResolver, getUri(args!!["uri"]))
                     result.success(null)

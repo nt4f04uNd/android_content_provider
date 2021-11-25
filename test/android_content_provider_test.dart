@@ -26,7 +26,6 @@ void main() {
 // * AndroidContentProvider
 // * (done) MimeTypeInfo
 // * ContentObserver
-// * DataSetObserver
 // * AndroidContentResolver
 
 

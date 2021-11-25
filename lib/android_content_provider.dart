@@ -472,7 +472,7 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   }
 }
 
-/// The cursor that calls in to platform Cursor
+/// The cursor that calls into platform Cursor
 /// https://developer.android.com/reference/android/database/Cursor
 ///
 /// The operations are packed into [NativeCursorGetBatch] to achieve the best performance
@@ -481,8 +481,13 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 ///
 /// Returned from [AndroidContentResolver.query].
 ///
+/// This class has no native counterpart, i.e. only Dart can call in such a manner
+/// to platform, but not otherwise. That's because other apps' abstract cursors
+/// can't be forced to use the batching. Instead of this [CursorData] is used to transfer data
+/// once to platform, which leads to certain limitations in this API, but will work for the most use cases.
+///
 /// See also:
-///  * [MatrixCursorData], which is a class, returned from [AndroidContentProvider.query].
+///  * [CursorData], which is a class, returned from [AndroidContentProvider.query].
 class NativeCursor extends Interoperable {
   /// Creates native cursor from an existing ID.
   @visibleForTesting
@@ -572,17 +577,18 @@ class NativeCursor extends Interoperable {
     });
   }
 
-  Future<void> registerDataSetObserver(DataSetObserver observer) {
-    return _methodChannel.invokeMethod<bool>('registerDataSetObserver', {
-      'observer': observer.id,
-    });
-  }
-
-  Future<void> unregisterDataSetObserver(DataSetObserver observer) {
-    return _methodChannel.invokeMethod<bool>('unregisterDataSetObserver', {
-      'observer': observer.id,
-    });
-  }
+  // fun registerDataSetObserver(observer: DataSetObserver!): Unit
+  // https://developer.android.com/reference/kotlin/android/database/AbstractCursor#registerdatasetobserver
+  //
+  // fun unregisterDataSetObserver(observer: DataSetObserver!): Unit
+  // https://developer.android.com/reference/kotlin/android/database/AbstractCursor#unregisterdatasetobserver
+  //
+  // Since the NativeCursor can only be used to call to platform, these methods are useless,
+  // since the only place that can be used to register DataSetObservers is the one that is also
+  // in charge of closing the cursor.
+  // This could be useful to use in ContentProvider if NativeCursor was used there, but instead
+  // CursorData is used, see the NativeCursor doc comments as to why.
+  //
 
   Future<void> setNotificationUri(String uri) {
     return _methodChannel.invokeMethod<bool>('setNotificationUri', {
@@ -816,6 +822,7 @@ class NativeCursorGetBatch {
 ///
 /// See also:
 ///  * [MatrixCursorData], which is a cursor data implementation backed by an array of [Object]s
+///  * [NativeCursor], which calls into platform Cursor
 abstract class CursorData {
   /// Creates cursor data.
   CursorData({required this.notificationUris});
@@ -1839,50 +1846,6 @@ abstract class ContentObserver extends Interoperable {
   // If you were just looking for a way to dispatch a notification - just call [onChange] or
   // [onChangeUris] directly. This is what native [dispatch] does anyways, when there's no
   // handler supplied.
-}
-
-/// Receives call backs when a data set has been changed, or made invalid.
-/// https://developer.android.com/reference/android/database/DataSetObserver
-abstract class DataSetObserver extends Interoperable {
-  /// Creates content observer.
-  DataSetObserver() : this._(_uuid.v4());
-  DataSetObserver._(this._id)
-      : _methodChannel = MethodChannel('$_channelPrefix/DataSetObserver/$_id') {
-    _methodChannel.setMethodCallHandler(_handleMethodCall);
-  }
-
-  @override
-  String get id => _id;
-  final String _id;
-
-  final MethodChannel _methodChannel;
-
-  Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
-    switch (methodCall.method) {
-      case 'onChanged':
-        return onChanged();
-      case 'onInvalidated':
-        return onInvalidated();
-      default:
-        throw PlatformException(
-          code: 'unimplemented',
-          message: 'Method not implemented: ${methodCall.method}',
-        );
-    }
-  }
-
-  @override
-  String toString() {
-    return '${objectRuntimeType(this, 'DataSetObserver')}($id)';
-  }
-
-  /// Gets called when the entire data set has changed,
-  /// most likely through a call not exposed in [NativeCursor] deprecated method `requery`.
-  void onChanged() {}
-
-  /// Gets called when the entire data becomes invalid, most likely through
-  /// a call to [NativeCursor.close], or not exposed in [NativeCursor] deprecated method `deactivate`.
-  void onInvalidated() {}
 }
 
 /// A communication interface with native Android ContentResolver
