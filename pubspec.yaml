@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   uuid: ^3.0.5
+  async: ^2.8.2
 
 dev_dependencies:
   flutter_test:

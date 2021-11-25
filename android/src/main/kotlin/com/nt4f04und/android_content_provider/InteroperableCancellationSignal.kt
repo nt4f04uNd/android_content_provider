@@ -1,14 +1,16 @@
 package com.nt4f04und.android_content_provider
 
 import android.os.CancellationSignal
+import android.os.Handler
+import android.os.Looper
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMethodCodec
-import java.lang.Exception
 import java.util.*
 
-class InteroperableCancellationSignal(
+class InteroperableCancellationSignal private constructor(
         binaryMessenger: BinaryMessenger,
-        id: String = UUID.randomUUID().toString())
+        id: String = UUID.randomUUID().toString(),
+        private var initialized: Boolean)
     : Interoperable<Interoperable.InteroperableMethodChannel>(
         id,
         InteroperableMethodChannel(
@@ -17,9 +19,13 @@ class InteroperableCancellationSignal(
                 id = id,
                 codec = StandardMethodCodec.INSTANCE)) {
 
+    constructor(binaryMessenger: BinaryMessenger,
+                id: String = UUID.randomUUID().toString())
+            : this(binaryMessenger, id, false)
+
     companion object {
         fun fromId(binaryMessenger: BinaryMessenger, id: String): InteroperableCancellationSignal {
-            return InteroperableCancellationSignal(binaryMessenger, id)
+            return InteroperableCancellationSignal(binaryMessenger, id, true)
         }
     }
 
@@ -28,25 +34,54 @@ class InteroperableCancellationSignal(
         get() = channel?.channel
 
     init {
+        if (initialized) {
+            Handler(Looper.getMainLooper()).post {
+                methodChannel?.invokeMethod("init", null)
+            }
+        }
+        var cancelledFromDart = false
+        var pendingCancel = false
+        fun invokeDartCancel() {
+            if (!initialized) {
+                pendingCancel = true
+            } else {
+                pendingCancel = false
+                // Dart already know the signal is cancelled, because it was the
+                // initiator of the cancel.
+                if (!cancelledFromDart) {
+                    methodChannel?.setMethodCallHandler(null)
+                    Handler(Looper.getMainLooper()).post {
+                        try {
+                            methodChannel?.invokeMethod("cancel", null)
+                        } finally {
+                            destroy()
+                        }
+                    }
+                }
+            }
+        }
         methodChannel!!.setMethodCallHandler { call, result ->
             when (call.method) {
+                "init" -> {
+                    initialized = true
+                    if (pendingCancel) {
+                        invokeDartCancel()
+                    }
+                }
                 "cancel" -> {
-                    signal?.setOnCancelListener(null)
+                    // Save this to variable instead of nulling out setOnCancelListener,
+                    // because signal might receive have some custom listener, which for example
+                    // happens in [AndroidContentProvider]
+                    cancelledFromDart = true
                     signal?.cancel()
                     destroy()
+                    result.success(null)
                 }
                 else -> result.notImplemented()
             }
         }
         signal!!.setOnCancelListener {
-            methodChannel?.setMethodCallHandler(null)
-            try {
-                methodChannel?.invokeMethod("cancel", null)
-            } catch (ex: Exception) {
-                // Swallow exceptions in case the channel has not been initialized yet.
-            } finally {
-                destroy()
-            }
+            invokeDartCancel()
         }
     }
 

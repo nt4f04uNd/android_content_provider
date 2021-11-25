@@ -6,10 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.net.Uri
-import android.os.Build
-import android.os.Bundle
-import android.os.CancellationSignal
-import android.os.ParcelFileDescriptor
+import android.os.*
 import androidx.annotation.CallSuper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -164,6 +161,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                         result.success(null)
                     }
                 }
+                else -> result.notImplemented()
             }
         }
         return true
@@ -176,8 +174,10 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     }
 
     /** Calls [MethodChannel.invokeMethod], not blocking the caller thread. */
-    protected fun asyncInvokeMethod(method: String, arguments: Any?): Any? {
-        return methodChannel!!.methodChannel.invokeMethod(method, arguments)
+    protected fun asyncInvokeMethod(method: String, arguments: Any?) {
+        Handler(Looper.getMainLooper()).post {
+            methodChannel!!.methodChannel.invokeMethod(method, arguments)
+        }
     }
 
     override fun bulkInsert(uri: Uri, values: Array<out ContentValues>): Int {
@@ -286,17 +286,23 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         return openFileFromPath(path, mode)
     }
 
-    override fun openFile(uri: Uri, mode: String, signal: CancellationSignal?): ParcelFileDescriptor? {
-        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+    override fun openFile(uri: Uri, mode: String, cancellationSignal: CancellationSignal?): ParcelFileDescriptor? {
+        var interoperableSignal: InteroperableCancellationSignal? = null
+        cancellationSignal?.let {
+            interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+            it.setOnCancelListener {
+                interoperableSignal!!.signal!!.cancel()
+            }
+        }
         try {
             val path = invokeMethod("openFileWithSignal", mapOf(
                     "uri" to uri,
                     "mode" to mode,
-                    "cancellationSignal" to interoperableSignal.id))
+                    "cancellationSignal" to interoperableSignal?.id))
                     as String?
             return openFileFromPath(path, mode)
         } finally {
-            interoperableSignal.destroy()
+            interoperableSignal?.destroy()
         }
     }
 
@@ -390,7 +396,13 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     }
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor? {
-        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        var interoperableSignal: InteroperableCancellationSignal? = null
+        cancellationSignal?.let {
+            interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+            it.setOnCancelListener {
+                interoperableSignal!!.signal!!.cancel()
+            }
+        }
         try {
             val result = asMap(invokeMethod("queryWithSignal", mapOf(
                     "uri" to uri,
@@ -398,39 +410,51 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                     "selection" to selection,
                     "selectionArgs" to selectionArgs,
                     "sortOrder" to sortOrder,
-                    "cancellationSignal" to interoperableSignal.id)))
+                    "cancellationSignal" to interoperableSignal?.id)))
                     ?: return null
             return matrixCursorFromMap(result)
         } finally {
-            interoperableSignal.destroy()
+            interoperableSignal?.destroy()
         }
     }
 
     override fun query(uri: Uri, projection: Array<out String>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor? {
-        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        var interoperableSignal: InteroperableCancellationSignal? = null
+        cancellationSignal?.let {
+            interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+            it.setOnCancelListener {
+                interoperableSignal!!.signal!!.cancel()
+            }
+        }
         try {
-            val result = asMap(invokeMethod("queryWithBundle", mapOf(
+            val result = asMap(invokeMethod("queryWithExtras", mapOf(
                     "uri" to uri,
                     "projection" to projection,
                     "queryArgs" to queryArgs,
-                    "cancellationSignal" to interoperableSignal.id)))
+                    "cancellationSignal" to interoperableSignal?.id)))
                     ?: return null
             return matrixCursorFromMap(result)
         } finally {
-            interoperableSignal.destroy()
+            interoperableSignal?.destroy()
         }
     }
 
     override fun refresh(uri: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean {
-        val interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+        var interoperableSignal: InteroperableCancellationSignal? = null
+        cancellationSignal?.let {
+            interoperableSignal = InteroperableCancellationSignal(engine.dartExecutor.binaryMessenger)
+            it.setOnCancelListener {
+                interoperableSignal!!.signal!!.cancel()
+            }
+        }
         try {
             return invokeMethod("refresh", mapOf(
                     "uri" to uri,
                     "extras" to extras,
-                    "cancellationSignal" to interoperableSignal.id))
+                    "cancellationSignal" to interoperableSignal?.id))
                     as Boolean
         } finally {
-            interoperableSignal.destroy()
+            interoperableSignal?.destroy()
         }
     }
 
@@ -457,7 +481,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     }
 
     override fun update(uri: Uri, values: ContentValues?, extras: Bundle?): Int {
-        return invokeMethod("update", mapOf(
+        return invokeMethod("updateWithExtras", mapOf(
                 "uri" to uri,
                 "values" to values,
                 "extras" to extras))

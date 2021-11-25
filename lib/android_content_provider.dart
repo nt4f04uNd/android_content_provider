@@ -3,11 +3,11 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:async/async.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import 'package:meta/meta.dart';
 
 const _uuid = Uuid();
 const _channelPrefix = 'com.nt4f04und.android_content_provider';
@@ -81,7 +81,7 @@ typedef BundleMap = Map<String, Object?>;
 /// Opaque token representing the identity of an incoming IPC.
 class CallingIdentity extends Interoperable {
   /// Creates native cursor from an existing ID.
-  @internal
+  @visibleForTesting
   CallingIdentity.fromId(String id) : super.fromId(id);
 
   @override
@@ -485,7 +485,7 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 ///  * [MatrixCursorData], which is a class, returned from [AndroidContentProvider.query].
 class NativeCursor extends Interoperable {
   /// Creates native cursor from an existing ID.
-  @internal
+  @visibleForTesting
   NativeCursor.fromId(String id)
       : _methodChannel = MethodChannel(
           '$_channelPrefix/Cursor/$id',
@@ -957,10 +957,10 @@ abstract class Interoperable {
   /// The of opposite [Interoperable.new].
   /// Used when the platform creats an object and needs a dart counterpart.
   ///
-  /// Marked as internal because it's generally not what an API user should use.
+  /// Marked as [visibleForTesting] because it's generally not what an API user should use.
   /// However, it could be useful for custom implementations of [NativeCursor]
   /// or [AndroidContentProvider] (i.e. those using `implements`).
-  @internal
+  @visibleForTesting
   const Interoperable.fromId(this.id);
 
   /// An ID of an object.
@@ -979,19 +979,58 @@ abstract class Interoperable {
 
 /// Provides the ability to cancel an operation in progress
 /// https://developer.android.com/reference/android/os/CancellationSignal
-class CancellationSignal extends Interoperable {
+class CancellationSignal extends ReceivedCancellationSignal {
   /// Creates cancellation signal.
-  CancellationSignal() : this.fromId(_uuid.v4());
-
-  /// Creates cancellation signal from an existing ID.
-  @internal
-  CancellationSignal.fromId(String id)
-      : _methodChannel =
-            MethodChannel('$_channelPrefix/CancellationSignal/$id'),
-        super.fromId(id) {
+  CancellationSignal() : super._(_uuid.v4()) {
+    _methodChannel = MethodChannel('$_channelPrefix/CancellationSignal/$id');
     _methodChannel.setMethodCallHandler(_handleMethodCall);
   }
-  final MethodChannel _methodChannel;
+
+  @override
+  late final MethodChannel _methodChannel;
+
+  /// Cancels the operation and signals the cancellation listener.
+  /// If the operation has not yet started, then it will be canceled as soon as it does.
+  void cancel() {
+    if (_cancelled || _disposed) {
+      return;
+    }
+    _cancelled = true;
+    _cancelListener?.call();
+    _initCompleter.operation.then((_) async {
+      _methodChannel.setMethodCallHandler(null);
+      await _methodChannel.invokeMethod<void>('cancel', {'id': id});
+    });
+  }
+}
+
+/// A [CancellationSignal] that was created somewhere else and received by some client,
+/// typically [AndroidContentProvider].
+///
+/// Can only be observed, and cannot be cancelled, because when such a signal is cancelled
+/// by the receiver, the creator cannot listen to this cancel, and probably doesn't even expect this.
+///
+/// Also, if receiver wants to end the operation, it should be able to just return (or throw) explicitly,
+/// instead of cancelling the signal, making this operation essentially useless.
+class ReceivedCancellationSignal extends Interoperable {
+  ReceivedCancellationSignal._(this._id);
+
+  /// Creates cancellation signal from an existing ID.
+  @visibleForTesting
+  ReceivedCancellationSignal.fromId(this._id)
+      : __methodChannel =
+            MethodChannel('$_channelPrefix/CancellationSignal/$_id') {
+    _initCompleter.complete();
+    _methodChannel.setMethodCallHandler(_handleMethodCall);
+    _methodChannel.invokeMethod<void>('init');
+  }
+
+  @override
+  String get id => _id;
+  final String _id;
+
+  MethodChannel get _methodChannel => __methodChannel;
+  late final MethodChannel __methodChannel;
 
   @override
   String toString() {
@@ -1002,6 +1041,8 @@ class CancellationSignal extends Interoperable {
   bool get cancelled => _cancelled;
   bool _cancelled = false;
 
+  /// Completer to wait the initialization of the native signal.
+  final _initCompleter = CancelableCompleter<void>();
   bool _disposed = false;
 
   VoidCallback? _cancelListener;
@@ -1019,22 +1060,6 @@ class CancellationSignal extends Interoperable {
     }
   }
 
-  /// Cancels the operation and signals the cancellation listener.
-  /// If the operation has not yet started, then it will be canceled as soon as it does.
-  Future<void> cancel() async {
-    if (_cancelled || _disposed) {
-      return;
-    }
-    try {
-      _cancelled = true;
-      _cancelListener?.call();
-      _methodChannel.setMethodCallHandler(null);
-      await _methodChannel.invokeMethod<void>('cancel', {'id': id});
-    } catch (ex) {
-      // Swallow exceptions in case the channel has not been initialized yet.
-    }
-  }
-
   /// Disposes the cancellation signal.
   ///
   /// This is called automatically by [AndroidContentResolver]
@@ -1042,17 +1067,20 @@ class CancellationSignal extends Interoperable {
   void dispose() {
     _disposed = true;
     _methodChannel.setMethodCallHandler(null);
+    _initCompleter.operation.cancel();
   }
 
   Future<dynamic> _handleMethodCall(MethodCall call) async {
-    if (_cancelled || _disposed) {
-      return;
-    }
     switch (call.method) {
+      case 'init':
+        _initCompleter.complete();
+        break;
       case 'cancel':
-        _cancelled = true;
-        _cancelListener?.call();
-        _methodChannel.setMethodCallHandler(null);
+        if (!_cancelled) {
+          _cancelled = true;
+          _cancelListener?.call();
+          _methodChannel.setMethodCallHandler(null);
+        }
         break;
       default:
         throw PlatformException(
@@ -1174,8 +1202,9 @@ abstract class AndroidContentProvider {
         );
       case 'openFileWithSignal':
         final signalId = args!['cancellationSignal'] as String?;
-        final signal =
-            signalId == null ? null : CancellationSignal.fromId(signalId);
+        final signal = signalId == null
+            ? null
+            : ReceivedCancellationSignal.fromId(signalId);
         try {
           return openFileWithSignal(
             args['uri'] as String,
@@ -1196,8 +1225,9 @@ abstract class AndroidContentProvider {
         return result?.toMap();
       case 'queryWithSignal':
         final signalId = args!['cancellationSignal'] as String?;
-        final signal =
-            signalId == null ? null : CancellationSignal.fromId(signalId);
+        final signal = signalId == null
+            ? null
+            : ReceivedCancellationSignal.fromId(signalId);
         try {
           final result = await queryWithSignal(
             args['uri'] as String,
@@ -1211,12 +1241,13 @@ abstract class AndroidContentProvider {
         } finally {
           signal?.dispose();
         }
-      case 'queryWithBundle':
+      case 'queryWithExtras':
         final signalId = args!['cancellationSignal'] as String?;
-        final signal =
-            signalId == null ? null : CancellationSignal.fromId(signalId);
+        final signal = signalId == null
+            ? null
+            : ReceivedCancellationSignal.fromId(signalId);
         try {
-          final result = await queryWithBundle(
+          final result = await queryWithExtras(
             args['uri'] as String,
             _asList(args['projection']),
             _asMap(args['queryArgs']),
@@ -1228,14 +1259,16 @@ abstract class AndroidContentProvider {
         }
       case 'refresh':
         final signalId = args!['cancellationSignal'] as String?;
-        final signal =
-            signalId == null ? null : CancellationSignal.fromId(signalId);
+        final signal = signalId == null
+            ? null
+            : ReceivedCancellationSignal.fromId(signalId);
         try {
-          return refresh(
+          final result = await refresh(
             args['uri'] as String,
             _asMap(args['extras']),
             signal,
           );
+          return result;
         } finally {
           signal?.dispose();
         }
@@ -1518,7 +1551,7 @@ abstract class AndroidContentProvider {
   Future<String?> openFileWithSignal(
     String uri,
     String mode,
-    CancellationSignal? cancellationSignal,
+    ReceivedCancellationSignal? cancellationSignal,
   ) async {
     return openFile(uri, mode);
   }
@@ -1554,18 +1587,18 @@ abstract class AndroidContentProvider {
     String? selection,
     List<String>? selectionArgs,
     String? sortOrder,
-    CancellationSignal? cancellationSignal,
+    ReceivedCancellationSignal? cancellationSignal,
   ) async {
     return query(uri, projection, selection, selectionArgs, sortOrder);
   }
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
-  Future<CursorData?> queryWithBundle(
+  Future<CursorData?> queryWithExtras(
     String uri,
     List<String>? projection,
     BundleMap? queryArgs,
-    CancellationSignal? cancellationSignal,
+    ReceivedCancellationSignal? cancellationSignal,
   ) async {
     if (queryArgs == null) {
       return queryWithSignal(
@@ -1602,7 +1635,7 @@ abstract class AndroidContentProvider {
   Future<bool> refresh(
     String uri,
     BundleMap? extras,
-    CancellationSignal? cancellationSignal,
+    ReceivedCancellationSignal? cancellationSignal,
   ) async {
     return false;
   }
@@ -1733,21 +1766,39 @@ abstract class ContentObserver extends Interoperable {
 
   Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
     final BundleMap? args = _asMap<String, Object?>(methodCall.arguments);
+    // сatch and report the exceptions, because the calls are made by the system which
+    // otherwise swallows them
     switch (methodCall.method) {
       case 'onChange':
-        final uri = args!['uri'] as String?;
-        return onChange(
-          args['selfChange'] as bool,
-          uri,
-          args['flags'] as int?,
-        );
+        try {
+          final uri = args!['uri'] as String?;
+          return onChange(
+            args['selfChange'] as bool,
+            uri,
+            args['flags'] as int?,
+          );
+        } catch (error, stackTrace) {
+          FlutterError.reportError(FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+          ));
+          return null;
+        }
       case 'onChangeUris':
-        final uris = _asList<String>(args!['uris'])!;
-        return onChangeUris(
-          args['selfChange'] as bool,
-          uris,
-          args['flags'] as int?,
-        );
+        try {
+          final uris = _asList<String>(args!['uris'])!;
+          return onChangeUris(
+            args['selfChange'] as bool,
+            uris,
+            args['flags'] as int?,
+          );
+        } catch (error, stackTrace) {
+          FlutterError.reportError(FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+          ));
+          return null;
+        }
       default:
         throw PlatformException(
           code: 'unimplemented',
@@ -1952,7 +2003,7 @@ class AndroidContentResolver {
   static const int NOTIFY_DELETE = 1 << 4;
 
   /// Returns structured sort args formatted as an SQL sort clause.
-  @internal
+  @visibleForTesting
   static String createSqlSortClause(BundleMap queryArgs) {
     final columns = _asList<String>(queryArgs[QUERY_ARG_SORT_COLUMNS]);
     if (columns == null || columns.isEmpty) {
@@ -2210,8 +2261,9 @@ class AndroidContentResolver {
   Future<void> notifyChangeWithList({
     required List<String> uris,
     ContentObserver? observer,
-    required int flags,
+    int? flags,
   }) {
+    flags ??= 0;
     return _methodChannel.invokeMethod<void>('notifyChangeWithList', {
       'uris': uris,
       'observer': observer?.id,
@@ -2288,7 +2340,8 @@ class AndroidContentResolver {
     String? sortOrder,
     CancellationSignal? cancellationSignal,
   }) async {
-    final result = await _methodChannel.invokeMethod<String>('query', {
+    final result =
+        await _methodChannel.invokeMethod<String>('queryWithSignal', {
       'uri': uri,
       'projection': projection,
       'selection': selection,
@@ -2302,14 +2355,14 @@ class AndroidContentResolver {
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_2
   @RequiresApiOrThrows(26)
-  Future<NativeCursor?> queryWithBundle({
+  Future<NativeCursor?> queryWithExtras({
     required String uri,
     List<String>? projection,
     BundleMap? queryArgs,
     CancellationSignal? cancellationSignal,
   }) async {
     final result =
-        await _methodChannel.invokeMethod<String>('queryWithBundle', {
+        await _methodChannel.invokeMethod<String>('queryWithExtras', {
       'uri': uri,
       'projection': projection,
       'queryArgs': queryArgs,

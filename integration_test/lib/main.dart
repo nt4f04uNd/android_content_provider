@@ -1,5 +1,6 @@
 // ignore_for_file: non_constant_identifier_names
 
+import 'dart:async';
 import 'dart:typed_data';
 
 // I use it to use `expect` outside of tests
@@ -45,8 +46,8 @@ class Stubs {
   ];
 
   static const sql_extras = {
-    AndroidContentResolver.QUERY_ARG_SQL_SELECTION: Stubs.string,
-    AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS: Stubs.stringList,
+    AndroidContentResolver.QUERY_ARG_SQL_SELECTION: string + string,
+    AndroidContentResolver.QUERY_ARG_SQL_SELECTION_ARGS: stringList,
   };
 
   static final query_columnNames = List.generate(8, (index) => 'column_$index');
@@ -68,6 +69,42 @@ const providerUri = 'content://$authority';
 
 const overflowingContentValuesTest =
     providerUri + '/overflowingContentValuesTest';
+const deleteWithExtrasTest = providerUri + '/deleteWithExtras';
+const insertWithExtrasTest = providerUri + '/insertWithExtras';
+const queryWithExtrasTest = providerUri + '/queryWithExtras';
+const updateWithExtrasTest = providerUri + '/updateWithExtras';
+
+typedef OnChangeCallback = void Function(
+  bool selfChange,
+  String? uri,
+  int? flags,
+);
+typedef OnChangeUrisCallback = void Function(
+  bool selfChange,
+  List<String> uris,
+  int? flags,
+);
+
+class TestContentObserver extends ContentObserver {
+  TestContentObserver({
+    OnChangeCallback? onChange,
+    OnChangeUrisCallback? onChangeUris,
+  })  : _onChange = onChange,
+        _onChangeUris = onChangeUris;
+
+  final OnChangeCallback? _onChange;
+  final OnChangeUrisCallback? _onChangeUris;
+
+  @override
+  void onChange(bool selfChange, String? uri, int? flags) {
+    _onChange?.call(selfChange, uri, flags);
+  }
+
+  @override
+  void onChangeUris(bool selfChange, List<String> uris, int? flags) {
+    _onChangeUris?.call(selfChange, uris, flags);
+  }
+}
 
 void main() {
   testWidgets("ContentValues overflow", (WidgetTester tester) async {
@@ -77,6 +114,66 @@ void main() {
     );
     expect(result, Stubs.number);
   });
+
+  group("ContentResolver", () {
+    testWidgets("getTypeInfo", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.getTypeInfo(
+        mimeType: 'image/png',
+      );
+      expect(result, isNotNull);
+      expect(result!.label, "PNG image");
+      expect(result.icon, hasLength(greaterThan(100)));
+      expect(result.contentDescription, "PNG image");
+    });
+
+    // TODO: testing `loadThumbnail` requires exposing [AndroidContentProvider.openTypedAssetFile]
+    // testWidgets("loadThumbnail", (WidgetTester tester) async {
+    //   final result = await AndroidContentResolver.instance.loadThumbnail(
+    //     uri: providerUri,
+    //     height: 100,
+    //     width: 100,
+    //     cancellationSignal: CancellationSignal()..cancel(),
+    //   );
+    //   expect(result, hasLength(greaterThan(100)));
+    // });
+
+    testWidgets("observers and notifyChange", (WidgetTester tester) async {
+      int calledCounter = 0;
+      final observer = TestContentObserver(
+        onChange: (bool selfChange, String? uri, int? flags) {
+          fail('onChange is not expected to be called');
+        },
+        onChangeUris: (bool selfChange, List<String> uris, int? flags) {
+          calledCounter += 1;
+          expect(calledCounter, 1);
+          expect(selfChange, false);
+          expect(uris, [providerUri]);
+          expect(flags, 0);
+        },
+      );
+      await AndroidContentResolver.instance.registerContentObserver(
+        uri: providerUri,
+        observer: observer,
+      );
+      try {
+        await AndroidContentResolver.instance.notifyChange(uri: providerUri);
+      } finally {
+        await AndroidContentResolver.instance
+            .unregisterContentObserver(observer);
+      }
+      await AndroidContentResolver.instance.notifyChange(uri: providerUri);
+      // expect(result, isNotNull);
+      // expect(result!.label, "PNG image");
+      // expect(result.icon, hasLength(greaterThan(100)));
+      // expect(result.contentDescription, "PNG image");
+    });
+  });
+
+  // group("ContentProvider", () {
+  //   testWidgets("___", (WidgetTester tester) async {
+
+  //   });
+  // });
 
   group("ContentProvider/ContentResolver", () {
     testWidgets("bulkInsert", (WidgetTester tester) async {
@@ -125,7 +222,7 @@ void main() {
 
     testWidgets("deleteWithExtras", (WidgetTester tester) async {
       final result = await AndroidContentResolver.instance.deleteWithExtras(
-        uri: providerUri,
+        uri: deleteWithExtrasTest,
         extras: Stubs.sql_extras,
       );
       expect(result, Stubs.number);
@@ -139,81 +236,159 @@ void main() {
       expect(result, Stubs.stringList);
     });
 
-    testWidgets("query", (WidgetTester tester) async {
-      final cursor = await AndroidContentResolver.instance.query(
+    testWidgets("getType", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.getType(
+        uri: providerUri,
+      );
+      expect(result, Stubs.string);
+    });
+
+    testWidgets("insert", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.insert(
+        uri: providerUri,
+        values: Stubs.contentValues,
+      );
+      expect(result, Stubs.string);
+    });
+
+    testWidgets("insertWithExtras", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.insertWithExtras(
+        uri: insertWithExtrasTest,
+        values: Stubs.contentValues,
+        extras: Stubs.sql_extras,
+      );
+      expect(result, Stubs.string);
+    });
+
+    testWidgets("query and queryWithExtras", (WidgetTester tester) async {
+      Future<void> doTest(NativeCursor? cursor) async {
+        expect(cursor, isNotNull);
+        try {
+          final expectedColumnCount = Stubs.query_columnNames.length;
+          while (await cursor!.moveToNext()) {
+            final batch = cursor.batchedGet();
+            batch
+              ..getCount()
+              ..getPosition()
+              ..isFirst()
+              ..isLast()
+              ..isBeforeFirst()
+              ..isAfterLast();
+            for (final columnName in Stubs.query_columnNames) {
+              batch.getColumnIndex(columnName);
+            }
+            batch.getColumnIndex('missing-column');
+            // skip getColumnIndexOrThrow - it has a separate test
+            for (int i = 0; i < expectedColumnCount; i++) {
+              batch.getColumnName(i);
+            }
+            batch
+              ..getColumnNames()
+              ..getColumnCount();
+            batch
+              ..getBytes(0)
+              ..getString(1)
+              ..getShort(2)
+              ..getInt(3)
+              ..getLong(4)
+              ..getFloat(5)
+              ..getDouble(6)
+              ..isNull(7);
+            for (int i = 0; i < expectedColumnCount; i++) {
+              batch.getType(i);
+            }
+            final results = await batch.commit();
+            expect(results, <Object?>[
+              1, // getCount
+              0, // getPosition
+              true, // isFirst
+              true, // isLast
+              false, // isBeforeFirst
+              false, // isAfterLast
+              // getColumnIndex
+              ...List.generate(expectedColumnCount, (index) => index),
+              -1,
+              ...Stubs.query_columnNames, // getColumnName
+              Stubs.query_columnNames, // getColumnNames
+              expectedColumnCount, // getColumnCount
+              // get___ methods
+              ...[...List.from(Stubs.query_rowData)..removeLast(), true],
+              // getType
+              ...<Type>[
+                Uint8List,
+                String,
+                int,
+                int,
+                int,
+                double,
+                double,
+                Null,
+              ]
+            ]);
+          }
+        } finally {
+          await cursor!.close();
+        }
+      }
+
+      await doTest(await AndroidContentResolver.instance.query(
         uri: providerUri,
         projection: Stubs.stringList,
         selection: Stubs.string,
         selectionArgs: Stubs.stringList,
         sortOrder: Stubs.string,
+      ));
+
+      await doTest(await AndroidContentResolver.instance.queryWithSignal(
+        uri: providerUri,
+        projection: Stubs.stringList,
+        selection: Stubs.string,
+        selectionArgs: Stubs.stringList,
+        sortOrder: Stubs.string,
+        cancellationSignal: CancellationSignal()..cancel(),
+      ));
+
+      await doTest(await AndroidContentResolver.instance.queryWithExtras(
+        uri: queryWithExtrasTest,
+        projection: Stubs.stringList,
+        queryArgs: Stubs.sql_extras,
+        cancellationSignal: CancellationSignal()..cancel(),
+      ));
+    });
+
+    testWidgets("refresh", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.refresh(
+        uri: providerUri,
+        extras: Stubs.bundle,
+        cancellationSignal: CancellationSignal()..cancel(),
       );
-      expect(cursor, isNotNull);
-      try {
-        final expectedColumnCount = Stubs.query_columnNames.length;
-        while (await cursor!.moveToNext()) {
-          final batch = cursor.batchedGet();
-          batch
-            ..getCount()
-            ..getPosition()
-            ..isFirst()
-            ..isLast()
-            ..isBeforeFirst()
-            ..isAfterLast();
-          for (final columnName in Stubs.query_columnNames) {
-            batch.getColumnIndex(columnName);
-          }
-          batch.getColumnIndex('missing-column');
-          // skip getColumnIndexOrThrow - it has a separate test
-          for (int i = 0; i < expectedColumnCount; i++) {
-            batch.getColumnName(i);
-          }
-          batch
-            ..getColumnNames()
-            ..getColumnCount();
-          batch
-            ..getBytes(0)
-            ..getString(1)
-            ..getShort(2)
-            ..getInt(3)
-            ..getLong(4)
-            ..getFloat(5)
-            ..getDouble(6)
-            ..isNull(7);
-          for (int i = 0; i < expectedColumnCount; i++) {
-            batch.getType(i);
-          }
-          final results = await batch.commit();
-          expect(results, <Object>[
-            1, // getCount
-            0, // getPosition
-            true, // isFirst
-            true, // isLast
-            false, // isBeforeFirst
-            false, // isAfterLast
-            // getColumnIndex
-            ...List.generate(expectedColumnCount, (index) => index),
-            -1,
-            ...Stubs.query_columnNames, // getColumnName
-            Stubs.query_columnNames, // getColumnNames
-            expectedColumnCount, // getColumnCount
-            // get___ methods
-            ...[...List.from(Stubs.query_rowData)..removeLast(), true],
-            // getType
-            ...<Type>[
-              Uint8List,
-              String,
-              int,
-              int,
-              int,
-              double,
-              double,
-              Null,
-            ]
-          ]);
-        }
-      } finally {
-        await cursor!.close();
-      }
+      expect(result, true);
+    });
+
+    testWidgets("uncanonicalize", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.uncanonicalize(
+        url: providerUri,
+      );
+      expect(result, Stubs.string);
+    });
+
+    testWidgets("update", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.update(
+        uri: providerUri,
+        values: Stubs.contentValues,
+        selection: Stubs.string,
+        selectionArgs: Stubs.stringList,
+      );
+      expect(result, Stubs.number);
+    });
+
+    testWidgets("updateWithExtras", (WidgetTester tester) async {
+      final result = await AndroidContentResolver.instance.updateWithExtras(
+        uri: updateWithExtrasTest,
+        values: Stubs.contentValues,
+        extras: Stubs.sql_extras,
+      );
+      expect(result, Stubs.number);
     });
   });
 }
@@ -289,13 +464,19 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
 
   @override
   Future<int> deleteWithExtras(String uri, BundleMap? extras) async {
-    _expect(uri, providerUri);
-    _expect(extras, Stubs.sql_extras);
-    return Stubs.number;
+    if (uri == deleteWithExtrasTest) {
+      // Android seems to be always calling through `deleteWithExtrasTest`
+      _expect(uri, deleteWithExtrasTest);
+      _expect(extras, Stubs.sql_extras);
+      return Stubs.number;
+    } else {
+      return super.deleteWithExtras(uri, extras);
+    }
   }
 
   @override
-  Future<List<String>?> getStreamTypes(String uri, String mimeTypeFilter) async {
+  Future<List<String>?> getStreamTypes(
+      String uri, String mimeTypeFilter) async {
     _expect(uri, providerUri);
     _expect(mimeTypeFilter, Stubs.string);
     return Stubs.stringList;
@@ -303,12 +484,32 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
 
   @override
   Future<String?> getType(String uri) async {
-    return null;
+    _expect(uri, providerUri);
+    return Stubs.string;
   }
 
   @override
   Future<String?> insert(String uri, ContentValues? values) async {
-    return null;
+    _expect(uri, providerUri);
+    _expect(values, Stubs.contentValues);
+    return Stubs.string;
+  }
+
+  @override
+  Future<String?> insertWithExtras(
+    String uri,
+    ContentValues? values,
+    BundleMap? extras,
+  ) async {
+    if (uri == insertWithExtrasTest) {
+      // Android seems to be always calling through `insertWithExtras`
+      _expect(uri, insertWithExtrasTest);
+      _expect(values, Stubs.contentValues);
+      _expect(extras, Stubs.sql_extras);
+      return Stubs.string;
+    } else {
+      return super.insertWithExtras(uri, values, extras);
+    }
   }
 
   @override
@@ -333,13 +534,106 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   }
 
   @override
+  Future<CursorData?> queryWithSignal(
+    String uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+    ReceivedCancellationSignal? cancellationSignal,
+  ) async {
+    if (cancellationSignal == null) {
+      return query(uri, projection, selection, selectionArgs, sortOrder);
+    } else {
+      await waitForSignal(cancellationSignal);
+      return query(uri, projection, selection, selectionArgs, sortOrder);
+    }
+  }
+
+  @override
+  Future<CursorData?> queryWithExtras(
+    String uri,
+    List<String>? projection,
+    BundleMap? queryArgs,
+    ReceivedCancellationSignal? cancellationSignal,
+  ) async {
+    if (uri == queryWithExtrasTest) {
+      // Android seems to be always calling through `queryWithExtras`
+      _expect(uri, queryWithExtrasTest);
+      _expect(projection, Stubs.stringList);
+      _expect(queryArgs, Stubs.sql_extras);
+      await waitForSignal(cancellationSignal!);
+      final cursorData = MatrixCursorData(
+        columnNames: Stubs.query_columnNames,
+        notificationUris: null,
+      );
+      cursorData.addRow(Stubs.query_rowData);
+      return cursorData;
+    } else {
+      return super.queryWithExtras(
+        uri,
+        projection,
+        queryArgs,
+        cancellationSignal,
+      );
+    }
+  }
+
+  @override
+  Future<bool> refresh(
+    String uri,
+    BundleMap? extras,
+    ReceivedCancellationSignal? cancellationSignal,
+  ) async {
+    _expect(uri, providerUri);
+    _expect(extras, Stubs.bundle);
+    await waitForSignal(cancellationSignal!);
+    return true;
+  }
+
+  @override
+  Future<String?> uncanonicalize(String url) async {
+    _expect(url, providerUri);
+    return Stubs.string;
+  }
+
+  @override
   Future<int> update(
     String uri,
     ContentValues? values,
     String? selection,
     List<String>? selectionArgs,
   ) async {
-    return 0;
+    _expect(uri, providerUri);
+    _expect(values, Stubs.contentValues);
+    _expect(selection, Stubs.string);
+    _expect(selectionArgs, Stubs.stringList);
+    return Stubs.number;
+  }
+
+  @override
+  Future<int> updateWithExtras(
+    String uri,
+    ContentValues? values,
+    BundleMap? extras,
+  ) async {
+    if (uri == updateWithExtrasTest) {
+      // Android seems to be always calling through `updateWithExtras`
+      _expect(uri, updateWithExtrasTest);
+      _expect(values, Stubs.contentValues);
+      _expect(extras, Stubs.sql_extras);
+      return Stubs.number;
+    } else {
+      return super.updateWithExtras(uri, values, extras);
+    }
+  }
+
+  Future<void> waitForSignal(ReceivedCancellationSignal cancellationSignal) {
+    final completer = Completer<void>();
+    cancellationSignal.setCancelListener(() {
+      completer.complete();
+    });
+    return completer.future.timeout(const Duration(seconds: 10));
   }
 
   String formatFailure(Matcher expected, actual, String which,

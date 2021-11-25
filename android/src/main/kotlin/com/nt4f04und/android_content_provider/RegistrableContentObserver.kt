@@ -7,7 +7,7 @@ import android.os.Looper
 import io.flutter.plugin.common.BinaryMessenger
 import java.util.*
 
-class RegistrableContentObserver(
+class RegistrableContentObserver private constructor(
         binaryMessenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString())
     : Registrable<Interoperable.InteroperableMethodChannel>(
@@ -53,27 +53,27 @@ class RegistrableContentObserver(
 
     class Observer(
             private val registryObserver: RegistrableContentObserver)
-        : ContentObserver(Handler(Looper.myLooper()!!)) {
+        : ContentObserver(Handler(Looper.getMainLooper())) {
 
         override fun deliverSelfNotifications(): Boolean {
             return true
         }
 
         override fun onChange(selfChange: Boolean) {
-            registryObserver.methodChannel!!.invokeMethod("onChange", mapOf(
+            registryObserver.methodChannel?.invokeMethod("onChange", mapOf(
                     "selfChange" to selfChange
             ))
         }
 
         override fun onChange(selfChange: Boolean, uri: Uri?) {
-            registryObserver.methodChannel!!.invokeMethod("onChange", mapOf(
+            registryObserver.methodChannel?.invokeMethod("onChange", mapOf(
                     "selfChange" to selfChange,
                     "uri" to uri
             ))
         }
 
         override fun onChange(selfChange: Boolean, uri: Uri?, flags: Int) {
-            registryObserver.methodChannel!!.invokeMethod("onChange", mapOf(
+            registryObserver.methodChannel?.invokeMethod("onChange", mapOf(
                     "selfChange" to selfChange,
                     "uri" to uri,
                     "flags" to flags
@@ -81,7 +81,7 @@ class RegistrableContentObserver(
         }
 
         override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int) {
-            registryObserver.methodChannel!!.invokeMethod("onChangeUris", mapOf(
+            registryObserver.methodChannel?.invokeMethod("onChangeUris", mapOf(
                     "selfChange" to selfChange,
                     "uris" to uris,
                     "flags" to flags

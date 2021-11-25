@@ -121,7 +121,7 @@ internal class AndroidContentResolver(
                         result.success(contentResolver.insert(
                                 getUri(args!!["uri"]),
                                 args["values"] as ContentValues?,
-                                mapToBundle(asMap(args["extras"]))))
+                                mapToBundle(asMap(args!!["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.R)
                     }
@@ -202,7 +202,7 @@ internal class AndroidContentResolver(
                             binaryMessenger)
                     result.success(interoperableCursor.id)
                 }
-                "queryWithBundle" -> {
+                "queryWithExtras" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val cancellationSignalId = args!!["cancellationSignal"] as String?
                         cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
@@ -259,7 +259,7 @@ internal class AndroidContentResolver(
                 }
                 "update" -> {
                     result.success(contentResolver.update(
-                            getUri(args!!["url"]),
+                            getUri(args!!["uri"]),
                             args["values"] as ContentValues?,
                             args["selection"] as String?,
                             listAsArray<String?>(args["selectionArgs"])))
@@ -267,7 +267,7 @@ internal class AndroidContentResolver(
                 "updateWithExtras" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         result.success(contentResolver.update(
-                                getUri(args!!["url"]),
+                                getUri(args!!["uri"]),
                                 args["values"] as ContentValues?,
                                 mapToBundle(asMap(args["extras"]))))
                     } else {
@@ -278,6 +278,10 @@ internal class AndroidContentResolver(
                     result.notImplemented()
                 }
             }
+        } catch (e: Exception) {
+            result.error("ERROR",
+                    "Method call failed",
+                    e.stackTraceToString())
         } finally {
             interoperableSignal?.destroy()
         }

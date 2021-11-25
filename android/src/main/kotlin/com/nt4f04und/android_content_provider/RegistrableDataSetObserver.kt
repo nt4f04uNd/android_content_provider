@@ -5,7 +5,7 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMethodCodec
 import java.util.*
 
-class RegistrableDataSetObserver(
+class RegistrableDataSetObserver private constructor(
         binaryMessenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString())
     : Registrable<Interoperable.InteroperableEventChannel>(
