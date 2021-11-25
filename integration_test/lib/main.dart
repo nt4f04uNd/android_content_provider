@@ -115,7 +115,10 @@ void main() {
     expect(result, Stubs.number);
   });
 
-  group("ContentResolver", () {
+  testWidgets(
+      "ContentObservers report exceptions", (WidgetTester tester) async {});
+
+  group("AndroidContentResolver", () {
     testWidgets("getTypeInfo", (WidgetTester tester) async {
       final result = await AndroidContentResolver.instance.getTypeInfo(
         mimeType: 'image/png',
@@ -137,9 +140,11 @@ void main() {
     //   expect(result, hasLength(greaterThan(100)));
     // });
 
-    testWidgets("observers and notifyChange", (WidgetTester tester) async {
+    testWidgets("ContentObservers and notifyChange work",
+        (WidgetTester tester) async {
       const flags = 1 | 2 | 4 | 8 | 16;
       int calledCounter = 0;
+      bool notifyForDescendantsTest = false;
       final observer = TestContentObserver(
         onChange: (bool selfChange, String? uri, int? flags) {
           fail('onChange is not expected to be called');
@@ -149,7 +154,11 @@ void main() {
           if (calledCounter == 1) {
             // Not self change
             expect(selfChange, false);
-            expect(uris, [providerUri]);
+            expect(uris, [
+              notifyForDescendantsTest
+                  ? providerUri + '/descendantUriShouldNotify'
+                  : providerUri
+            ]);
             expect(flags, flags);
           } else if (calledCounter == 2) {
             // Self change
@@ -170,6 +179,7 @@ void main() {
         uri: providerUri,
         observer: observer,
       );
+      // notifyForDescendants=false test
       try {
         await AndroidContentResolver.instance.notifyChange(
           uri: providerUri,
@@ -184,6 +194,10 @@ void main() {
           uris: [providerUri, providerUri, providerUri],
           flags: flags,
         );
+        await AndroidContentResolver.instance.notifyChangeWithList(
+          uris: [providerUri + '/descendantUriShouldNotNotify'],
+          flags: flags,
+        );
       } finally {
         await AndroidContentResolver.instance
             .unregisterContentObserver(observer);
@@ -191,16 +205,37 @@ void main() {
       await AndroidContentResolver.instance.notifyChange(
         uri: providerUri,
       );
+
+      expect(calledCounter, 3);
+      calledCounter = 0;
+
+      // notifyForDescendants=true test
+      notifyForDescendantsTest = true;
+      await AndroidContentResolver.instance.registerContentObserver(
+        uri: providerUri,
+        observer: observer,
+        notifyForDescendants: true,
+      );
+      try {
+        await AndroidContentResolver.instance.notifyChangeWithList(
+          uris: [providerUri + '/descendantUriShouldNotify'],
+          flags: flags,
+        );
+      } finally {
+        await AndroidContentResolver.instance
+            .unregisterContentObserver(observer);
+      }
+      expect(calledCounter, 1);
     });
   });
 
-  // group("ContentProvider", () {
+  // group("AndroidContentProvider", () {
   //   testWidgets("___", (WidgetTester tester) async {
 
   //   });
   // });
 
-  group("ContentProvider/ContentResolver", () {
+  group("AndroidContentProvider/AndroidContentResolver", () {
     testWidgets("bulkInsert", (WidgetTester tester) async {
       final result = await AndroidContentResolver.instance.bulkInsert(
         uri: providerUri,
