@@ -1892,12 +1892,13 @@ abstract class DataSetObserver extends Interoperable {
 /// it seems like they would fit separate packages.
 class AndroidContentResolver {
   /// Creates a communication interface with native Android ContentResolver.
-  const AndroidContentResolver();
-
-  /// Default AndroidContentResovler instance.
   ///
+  /// Kept for ability to extent this class, prefer using the [instance].
   /// There's no much sense in creating multiple instances of resolver, because
   /// all of them will ultimately call the same method channel.
+  const AndroidContentResolver();
+
+  /// Constant [AndroidContentResovler] instance.
   static const instance = AndroidContentResolver();
 
   static const MethodChannel _methodChannel = MethodChannel(
@@ -2261,9 +2262,8 @@ class AndroidContentResolver {
   Future<void> notifyChangeWithList({
     required List<String> uris,
     ContentObserver? observer,
-    int? flags,
+    required int flags,
   }) {
-    flags ??= 0;
     return _methodChannel.invokeMethod<void>('notifyChangeWithList', {
       'uris': uris,
       'observer': observer?.id,

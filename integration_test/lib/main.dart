@@ -138,6 +138,7 @@ void main() {
     // });
 
     testWidgets("observers and notifyChange", (WidgetTester tester) async {
+      const flags = 1 | 2 | 4 | 8 | 16;
       int calledCounter = 0;
       final observer = TestContentObserver(
         onChange: (bool selfChange, String? uri, int? flags) {
@@ -145,10 +146,24 @@ void main() {
         },
         onChangeUris: (bool selfChange, List<String> uris, int? flags) {
           calledCounter += 1;
-          expect(calledCounter, 1);
-          expect(selfChange, false);
-          expect(uris, [providerUri]);
-          expect(flags, 0);
+          if (calledCounter == 1) {
+            // Not self change
+            expect(selfChange, false);
+            expect(uris, [providerUri]);
+            expect(flags, flags);
+          } else if (calledCounter == 2) {
+            // Self change
+            expect(selfChange, true);
+            expect(uris, [providerUri]);
+            expect(flags, flags);
+          } else if (calledCounter == 3) {
+            // List of URIs
+            expect(selfChange, false);
+            expect(uris, [providerUri, providerUri, providerUri]);
+            expect(flags, flags);
+          } else {
+            fail("Observer wasn't unregistered");
+          }
         },
       );
       await AndroidContentResolver.instance.registerContentObserver(
@@ -156,16 +171,26 @@ void main() {
         observer: observer,
       );
       try {
-        await AndroidContentResolver.instance.notifyChange(uri: providerUri);
+        await AndroidContentResolver.instance.notifyChange(
+          uri: providerUri,
+          flags: flags,
+        );
+        await AndroidContentResolver.instance.notifyChange(
+          uri: providerUri,
+          observer: observer,
+          flags: flags,
+        );
+        await AndroidContentResolver.instance.notifyChangeWithList(
+          uris: [providerUri, providerUri, providerUri],
+          flags: flags,
+        );
       } finally {
         await AndroidContentResolver.instance
             .unregisterContentObserver(observer);
       }
-      await AndroidContentResolver.instance.notifyChange(uri: providerUri);
-      // expect(result, isNotNull);
-      // expect(result!.label, "PNG image");
-      // expect(result.icon, hasLength(greaterThan(100)));
-      // expect(result.contentDescription, "PNG image");
+      await AndroidContentResolver.instance.notifyChange(
+        uri: providerUri,
+      );
     });
   });
 
