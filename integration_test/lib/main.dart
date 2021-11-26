@@ -3,12 +3,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-// I use it to use `expect` outside of tests
-// ignore: implementation_imports
-import 'package:test_api/src/expect/async_matcher.dart';
-// ignore: implementation_imports
-import 'package:test_api/src/expect/util/pretty_print.dart';
-
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:android_content_provider/android_content_provider.dart';
@@ -108,7 +103,10 @@ class TestContentObserver extends ContentObserver {
 }
 
 void main() {
-  testWidgets("ContentValues overflow", (WidgetTester tester) async {
+  const integrationTestMethodChannel =
+      MethodChannel('integrationTestMethodChannel');
+
+  test("ContentValues overflow", () async {
     final result = await AndroidContentResolver.instance.bulkInsert(
       uri: overflowingContentValuesTest,
       values: [Stubs.overflowingContentValues],
@@ -160,7 +158,7 @@ void main() {
   });
 
   group("AndroidContentResolver", () {
-    testWidgets("getTypeInfo", (WidgetTester tester) async {
+    test("getTypeInfo", () async {
       final result = await AndroidContentResolver.instance.getTypeInfo(
         mimeType: 'image/png',
       );
@@ -171,7 +169,7 @@ void main() {
     });
 
     // TODO: testing `loadThumbnail` requires exposing [AndroidContentProvider.openTypedAssetFile]
-    // testWidgets("loadThumbnail", (WidgetTester tester) async {
+    // test("loadThumbnail", () async {
     //   final result = await AndroidContentResolver.instance.loadThumbnail(
     //     uri: providerUri,
     //     height: 100,
@@ -181,8 +179,7 @@ void main() {
     //   expect(result, hasLength(greaterThan(100)));
     // });
 
-    testWidgets("ContentObserver and notifyChange work",
-        (WidgetTester tester) async {
+    test("ContentObserver and notifyChange work", () async {
       const flags = 1 | 2 | 4 | 8 | 16;
       int calledCounter = 0;
       bool notifyForDescendantsTest = false;
@@ -271,14 +268,8 @@ void main() {
     });
   });
 
-  // group("AndroidContentProvider", () {
-  //   testWidgets("___", (WidgetTester tester) async {
-
-  //   });
-  // });
-
   group("AndroidContentProvider/AndroidContentResolver", () {
-    testWidgets("bulkInsert", (WidgetTester tester) async {
+    test("bulkInsert", () async {
       final result = await AndroidContentResolver.instance.bulkInsert(
         uri: providerUri,
         values: Stubs.contentValuesList,
@@ -286,7 +277,7 @@ void main() {
       expect(result, Stubs.number);
     });
 
-    testWidgets("call", (WidgetTester tester) async {
+    test("call", () async {
       final result = await AndroidContentResolver.instance.call(
         uri: providerUri,
         method: Stubs.string,
@@ -296,7 +287,7 @@ void main() {
       expect(result, Stubs.bundle);
     });
 
-    testWidgets("callWithAuthority", (WidgetTester tester) async {
+    test("callWithAuthority", () async {
       final result = await AndroidContentResolver.instance.callWithAuthority(
         authority: authority,
         method: Stubs.string,
@@ -306,14 +297,14 @@ void main() {
       expect(result, Stubs.bundle);
     });
 
-    testWidgets("canonicalize", (WidgetTester tester) async {
+    test("canonicalize", () async {
       final result = await AndroidContentResolver.instance.canonicalize(
         url: providerUri,
       );
       expect(result, Stubs.string);
     });
 
-    testWidgets("delete", (WidgetTester tester) async {
+    test("delete", () async {
       final result = await AndroidContentResolver.instance.delete(
         uri: providerUri,
         selection: Stubs.string,
@@ -322,7 +313,7 @@ void main() {
       expect(result, Stubs.number);
     });
 
-    testWidgets("deleteWithExtras", (WidgetTester tester) async {
+    test("deleteWithExtras", () async {
       final result = await AndroidContentResolver.instance.deleteWithExtras(
         uri: deleteWithExtrasTest,
         extras: Stubs.sql_extras,
@@ -330,7 +321,7 @@ void main() {
       expect(result, Stubs.number);
     });
 
-    testWidgets("getStreamTypes", (WidgetTester tester) async {
+    test("getStreamTypes", () async {
       final result = await AndroidContentResolver.instance.getStreamTypes(
         uri: providerUri,
         mimeTypeFilter: Stubs.string,
@@ -338,14 +329,14 @@ void main() {
       expect(result, Stubs.stringList);
     });
 
-    testWidgets("getType", (WidgetTester tester) async {
+    test("getType", () async {
       final result = await AndroidContentResolver.instance.getType(
         uri: providerUri,
       );
       expect(result, Stubs.string);
     });
 
-    testWidgets("insert", (WidgetTester tester) async {
+    test("insert", () async {
       final result = await AndroidContentResolver.instance.insert(
         uri: providerUri,
         values: Stubs.contentValues,
@@ -353,7 +344,7 @@ void main() {
       expect(result, Stubs.string);
     });
 
-    testWidgets("insertWithExtras", (WidgetTester tester) async {
+    test("insertWithExtras", () async {
       final result = await AndroidContentResolver.instance.insertWithExtras(
         uri: insertWithExtrasTest,
         values: Stubs.contentValues,
@@ -362,7 +353,7 @@ void main() {
       expect(result, Stubs.string);
     });
 
-    testWidgets("query and queryWithExtras", (WidgetTester tester) async {
+    test("query and queryWithExtras", () async {
       Future<void> doTest(NativeCursor? cursor) async {
         expect(cursor, isNotNull);
         try {
@@ -458,7 +449,7 @@ void main() {
       ));
     });
 
-    testWidgets("refresh", (WidgetTester tester) async {
+    test("refresh", () async {
       final result = await AndroidContentResolver.instance.refresh(
         uri: providerUri,
         extras: Stubs.bundle,
@@ -467,14 +458,14 @@ void main() {
       expect(result, true);
     });
 
-    testWidgets("uncanonicalize", (WidgetTester tester) async {
+    test("uncanonicalize", () async {
       final result = await AndroidContentResolver.instance.uncanonicalize(
         url: providerUri,
       );
       expect(result, Stubs.string);
     });
 
-    testWidgets("update", (WidgetTester tester) async {
+    test("update", () async {
       final result = await AndroidContentResolver.instance.update(
         uri: providerUri,
         values: Stubs.contentValues,
@@ -484,7 +475,7 @@ void main() {
       expect(result, Stubs.number);
     });
 
-    testWidgets("updateWithExtras", (WidgetTester tester) async {
+    test("updateWithExtras", () async {
       final result = await AndroidContentResolver.instance.updateWithExtras(
         uri: updateWithExtrasTest,
         values: Stubs.contentValues,
@@ -495,9 +486,63 @@ void main() {
   });
 }
 
+const callingInfoTest = 'callingInfo';
+
 @pragma('vm:entry-point')
 void integrationTestContentProviderEntrypoint() async {
-  IntegrationTestAndroidContentProvider();
+  late final IntegrationTestAndroidContentProvider provider;
+  setUpAll(() {
+    // wrap into a setUp to allow `expect`s and other test related APIs to work
+    provider = IntegrationTestAndroidContentProvider();
+  });
+
+  test("clearCallingIdentity and restoreCallingIdentity", () async {
+    final identity = await provider.clearCallingIdentity();
+    await provider.restoreCallingIdentity(identity!);
+  });
+
+  test(
+      "callingInfo - getCallingAttributionTag, getCallingPackage, getCallingPackageUnchecked and onCallingPackageChanged",
+      () async {
+    expect(await provider.getCallingAttributionTag(), null);
+    expect(await provider.getCallingPackage(), null);
+    expect(await provider.getCallingPackageUnchecked(), null);
+    // warm-up call to start recording
+    await AndroidContentResolver.instance.callWithAuthority(
+      authority: authority,
+      method: callingInfoTest,
+      arg: 'start',
+    );
+    final resolverResult =
+        await AndroidContentResolver.instance.callWithAuthority(
+      authority: authority,
+      method: callingInfoTest,
+      arg: 'end',
+    );
+    expect(resolverResult!['result'], [
+      {
+        'getCallingAttributionTag': null,
+        'getCallingPackage': null,
+        'getCallingPackageUnchecked': null,
+      },
+      {
+        'getCallingAttributionTag': null,
+        'getCallingPackage':
+            'com.nt4f04und.android_content_provider_integration_test',
+        'getCallingPackageUnchecked':
+            'com.nt4f04und.android_content_provider_integration_test',
+      },
+    ]);
+  });
+
+  // Not testable:
+  //  * onLowMemory
+  //  * onTrimMemory
+
+  // TODO: testing `openFile` and `openFileWithSignal` requires exposing Java APIs for reading and writing files
+  // test("openFile and openFileWithSignal", () async {
+
+  // });
 }
 
 class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
@@ -508,29 +553,32 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     if (uri == overflowingContentValuesTest) {
       final actual = values.first.values.toList();
       final expected = Stubs.overflowingContentValues.values.toList();
-      _expect(actual.length, expected.length);
+      expect(actual.length, expected.length);
       // check values that  overflow only in Java
       for (int i = 0; i < 3; i++) {
-        _expect(actual[i], isNot(equals(expected[i])));
+        expect(actual[i], isNot(equals(expected[i])));
       }
       // check values that overflow both in Dart and java
       for (int i = 4; i < 5; i++) {
-        _expect(actual.last, expected.last);
+        expect(actual.last, expected.last);
       }
     } else {
-      _expect(uri, providerUri);
-      _expect(values, Stubs.contentValuesList);
+      expect(uri, providerUri);
+      expect(values, Stubs.contentValuesList);
     }
     return Stubs.number;
   }
 
   @override
   Future<BundleMap?> call(String method, String? arg, BundleMap? extras) async {
-    _expect(method, Stubs.string);
-    _expect(arg, Stubs.string);
-    _expect(extras, Stubs.bundle);
+    expect(method, Stubs.string);
+    expect(arg, Stubs.string);
+    expect(extras, Stubs.bundle);
     return Stubs.bundle;
   }
+
+  bool recordningCallingInfo = false;
+  var callingInfo = <BundleMap>[];
 
   @override
   Future<BundleMap?> callWithAuthority(
@@ -539,16 +587,28 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     String? arg,
     BundleMap? extras,
   ) async {
-    _expect(authority, authority);
-    _expect(method, Stubs.string);
-    _expect(arg, Stubs.string);
-    _expect(extras, Stubs.bundle);
+    if (method == callingInfoTest) {
+      if (arg == 'start') {
+        callingInfo = [];
+        // warm-up call to start recording
+        recordningCallingInfo = true;
+        return null;
+      } else {
+        recordningCallingInfo = false;
+        expect(arg, 'end');
+        return {'result': callingInfo};
+      }
+    }
+    expect(authority, authority);
+    expect(method, Stubs.string);
+    expect(arg, Stubs.string);
+    expect(extras, Stubs.bundle);
     return Stubs.bundle;
   }
 
   @override
   Future<String?> canonicalize(String url) async {
-    _expect(url, providerUri);
+    expect(url, providerUri);
     return Stubs.string;
   }
 
@@ -558,9 +618,9 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     String? selection,
     List<String>? selectionArgs,
   ) async {
-    _expect(uri, providerUri);
-    _expect(selection, Stubs.string);
-    _expect(selectionArgs, Stubs.stringList);
+    expect(uri, providerUri);
+    expect(selection, Stubs.string);
+    expect(selectionArgs, Stubs.stringList);
     return Stubs.number;
   }
 
@@ -568,8 +628,8 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   Future<int> deleteWithExtras(String uri, BundleMap? extras) async {
     if (uri == deleteWithExtrasTest) {
       // Android seems to be always calling through `deleteWithExtrasTest`
-      _expect(uri, deleteWithExtrasTest);
-      _expect(extras, Stubs.sql_extras);
+      expect(uri, deleteWithExtrasTest);
+      expect(extras, Stubs.sql_extras);
       return Stubs.number;
     } else {
       return super.deleteWithExtras(uri, extras);
@@ -579,21 +639,21 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   @override
   Future<List<String>?> getStreamTypes(
       String uri, String mimeTypeFilter) async {
-    _expect(uri, providerUri);
-    _expect(mimeTypeFilter, Stubs.string);
+    expect(uri, providerUri);
+    expect(mimeTypeFilter, Stubs.string);
     return Stubs.stringList;
   }
 
   @override
   Future<String?> getType(String uri) async {
-    _expect(uri, providerUri);
+    expect(uri, providerUri);
     return Stubs.string;
   }
 
   @override
   Future<String?> insert(String uri, ContentValues? values) async {
-    _expect(uri, providerUri);
-    _expect(values, Stubs.contentValues);
+    expect(uri, providerUri);
+    expect(values, Stubs.contentValues);
     return Stubs.string;
   }
 
@@ -605,13 +665,50 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   ) async {
     if (uri == insertWithExtrasTest) {
       // Android seems to be always calling through `insertWithExtras`
-      _expect(uri, insertWithExtrasTest);
-      _expect(values, Stubs.contentValues);
-      _expect(extras, Stubs.sql_extras);
+      expect(uri, insertWithExtrasTest);
+      expect(values, Stubs.contentValues);
+      expect(extras, Stubs.sql_extras);
       return Stubs.string;
     } else {
       return super.insertWithExtras(uri, values, extras);
     }
+  }
+
+  @override
+  Future<void> onCallingPackageChanged() async {
+    if (recordningCallingInfo) {
+      callingInfo.add({
+        'getCallingAttributionTag': await getCallingAttributionTag(),
+        'getCallingPackage': await getCallingPackage(),
+        'getCallingPackageUnchecked': await getCallingPackageUnchecked(),
+      });
+    }
+  }
+
+  @override
+  void onLowMemory() {
+    // Not testable
+  }
+
+  @override
+  void onTrimMemory(int level) {
+    // Not testable
+  }
+
+  @override
+  Future<String?> openFile(String uri, String mode) {
+    // TODO: testing `openFile` and `openFileWithSignal` requires exposing Java APIs for reading and writing files
+    return super.openFile(uri, mode);
+  }
+
+  @override
+  Future<String?> openFileWithSignal(
+    String uri,
+    String mode,
+    ReceivedCancellationSignal? cancellationSignal,
+  ) {
+    // TODO: testing `openFile` and `openFileWithSignal` requires exposing Java APIs for reading and writing files
+    return super.openFileWithSignal(uri, mode, cancellationSignal);
   }
 
   @override
@@ -622,11 +719,11 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     List<String>? selectionArgs,
     String? sortOrder,
   ) async {
-    _expect(uri, providerUri);
-    _expect(projection, selectionArgs);
-    _expect(selection, Stubs.string);
-    _expect(selectionArgs, selectionArgs);
-    _expect(sortOrder, Stubs.string);
+    expect(uri, providerUri);
+    expect(projection, selectionArgs);
+    expect(selection, Stubs.string);
+    expect(selectionArgs, selectionArgs);
+    expect(sortOrder, Stubs.string);
     final cursorData = MatrixCursorData(
       columnNames: Stubs.query_columnNames,
       notificationUris: null,
@@ -661,9 +758,9 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   ) async {
     if (uri == queryWithExtrasTest) {
       // Android seems to be always calling through `queryWithExtras`
-      _expect(uri, queryWithExtrasTest);
-      _expect(projection, Stubs.stringList);
-      _expect(queryArgs, Stubs.sql_extras);
+      expect(uri, queryWithExtrasTest);
+      expect(projection, Stubs.stringList);
+      expect(queryArgs, Stubs.sql_extras);
       await waitForSignal(cancellationSignal!);
       final cursorData = MatrixCursorData(
         columnNames: Stubs.query_columnNames,
@@ -687,15 +784,15 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     BundleMap? extras,
     ReceivedCancellationSignal? cancellationSignal,
   ) async {
-    _expect(uri, providerUri);
-    _expect(extras, Stubs.bundle);
+    expect(uri, providerUri);
+    expect(extras, Stubs.bundle);
     await waitForSignal(cancellationSignal!);
     return true;
   }
 
   @override
   Future<String?> uncanonicalize(String url) async {
-    _expect(url, providerUri);
+    expect(url, providerUri);
     return Stubs.string;
   }
 
@@ -706,10 +803,10 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     String? selection,
     List<String>? selectionArgs,
   ) async {
-    _expect(uri, providerUri);
-    _expect(values, Stubs.contentValues);
-    _expect(selection, Stubs.string);
-    _expect(selectionArgs, Stubs.stringList);
+    expect(uri, providerUri);
+    expect(values, Stubs.contentValues);
+    expect(selection, Stubs.string);
+    expect(selectionArgs, Stubs.stringList);
     return Stubs.number;
   }
 
@@ -721,9 +818,9 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   ) async {
     if (uri == updateWithExtrasTest) {
       // Android seems to be always calling through `updateWithExtras`
-      _expect(uri, updateWithExtrasTest);
-      _expect(values, Stubs.contentValues);
-      _expect(extras, Stubs.sql_extras);
+      expect(uri, updateWithExtrasTest);
+      expect(values, Stubs.contentValues);
+      expect(extras, Stubs.sql_extras);
       return Stubs.number;
     } else {
       return super.updateWithExtras(uri, values, extras);
@@ -736,63 +833,5 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
       completer.complete();
     });
     return completer.future.timeout(const Duration(seconds: 10));
-  }
-
-  String formatFailure(Matcher expected, actual, String which,
-      {String? reason}) {
-    var buffer = StringBuffer();
-    buffer.writeln(indent(prettyPrint(expected), first: 'Expected: '));
-    buffer.writeln(indent(prettyPrint(actual), first: '  Actual: '));
-    if (which.isNotEmpty) buffer.writeln(indent(which, first: '   Which: '));
-    if (reason != null) buffer.writeln(reason);
-    return buffer.toString();
-  }
-
-  String formatter(actual, matcher, matchState, verbose) {
-    var mismatchDescription = StringDescription();
-    matcher.describeMismatch(actual, mismatchDescription, matchState, verbose);
-
-    return formatFailure(matcher, actual, mismatchDescription.toString());
-  }
-
-  dynamic _expect(actual, matcher) {
-    matcher = wrapMatcher(matcher);
-
-    if (matcher is AsyncMatcher) {
-      // Avoid async/await so that expect() throws synchronously when possible.
-      var result = matcher.matchAsync(actual);
-      expect(
-          result,
-          anyOf([
-            equals(null),
-            const TypeMatcher<Future>(),
-            const TypeMatcher<String>()
-          ]),
-          reason: 'matchAsync() may only return a String, a Future, or null.');
-
-      if (result is String) {
-        fail(formatFailure(matcher, actual, result));
-      } else if (result is Future) {
-        return result.then((realResult) {
-          if (realResult == null) {
-            return;
-          }
-          fail(formatFailure(
-            matcher as Matcher,
-            actual,
-            realResult as String,
-          ));
-        });
-      }
-
-      return Future.sync(() {});
-    }
-
-    var matchState = {};
-
-    if ((matcher as Matcher).matches(actual, matchState)) {
-      return Future.sync(() {});
-    }
-    fail(formatter(actual, matcher, matchState, false));
   }
 }

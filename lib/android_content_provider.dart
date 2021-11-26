@@ -1176,8 +1176,6 @@ abstract class AndroidContentProvider {
           args!['uri'] as String,
           args['extras'] as BundleMap?,
         );
-      case 'dump':
-        return dump(_asList(args!['args']));
       case 'getStreamTypes':
         return getStreamTypes(
           args!['uri'] as String,
@@ -1415,11 +1413,13 @@ abstract class AndroidContentProvider {
     );
   }
 
-  /// dump(fd: FileDescriptor!, writer: PrintWriter!, args: Array<String!>!): Unit
-  /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#dump
-  Future<String> dump(List<String>? args) async {
-    return 'nothing to dump';
-  }
+  // dump(fd: FileDescriptor!, writer: PrintWriter!, args: Array<String!>!): Unit
+  // https://developer.android.com/reference/kotlin/android/content/ContentProvider#dump
+  //
+  // Cannot be supported, since called from the UI thread and must return synchronously,
+  // which is not possible, since method calls happen on UI thread.
+  //
+  //
 
   // getCallingAttributionSource(): AttributionSource?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#getcallingattributionsource

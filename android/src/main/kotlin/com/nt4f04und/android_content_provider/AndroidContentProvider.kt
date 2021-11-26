@@ -8,6 +8,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.*
 import androidx.annotation.CallSuper
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -22,6 +23,7 @@ import java.io.File
 import java.io.FileDescriptor
 import java.io.FileNotFoundException
 import java.io.PrintWriter
+import java.lang.Exception
 
 
 /** A [ContentProvider] for [AndroidContentProviderPlugin].
@@ -132,21 +134,28 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                 }
                 "getCallingAttributionTag" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        result.success(callingAttributionTag)
+                        result.success(localCallingAttributionTag)
                     } else {
                         result.success(null)
                     }
                 }
                 "getCallingPackage" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                        result.success(callingPackage)
+                        if (localCallingPackageSecurityException == null) {
+                            result.success(localCallingPackage)
+                        } else {
+                            result.error(
+                                    "SecurityException",
+                                    localCallingPackageSecurityException!!.message,
+                                    localCallingPackageSecurityException!!.stackTraceToString())
+                        }
                     } else {
                         result.success(null)
                     }
                 }
                 "getCallingPackageUnchecked" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        result.success(callingPackageUnchecked)
+                        result.success(localCallingPackageUnchecked)
                     } else {
                         result.success(null)
                     }
@@ -226,12 +235,8 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                 as Int
     }
 
-    override fun dump(fd: FileDescriptor, writer: PrintWriter, args: Array<out String>) {
-        writer.write(invokeMethod("dump", mapOf(
-                "args" to args))
-                as String)
-    }
-
+    //
+    // dump
     //
     // getCallingAttributionTag
     //
@@ -265,7 +270,31 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                 "extras" to extras)))
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
+    private var localCallingAttributionTag :String? = null
+    @RequiresApi(Build.VERSION_CODES.KITKAT)
+    private var localCallingPackage :String? = null
+    @RequiresApi(Build.VERSION_CODES.KITKAT)
+    private var localCallingPackageSecurityException : SecurityException? = null
+    @RequiresApi(Build.VERSION_CODES.R)
+    private var localCallingPackageUnchecked :String? = null
+
     override fun onCallingPackageChanged() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            localCallingAttributionTag = callingAttributionTag
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            try {
+                localCallingPackageSecurityException = null
+                localCallingPackage = callingPackage
+            } catch (e : SecurityException) {
+                // Pass to local variable to rethrow when it's actually accessed
+                localCallingPackageSecurityException = e
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            localCallingPackageUnchecked = callingPackageUnchecked
+        }
         invokeMethod("onCallingPackageChanged", null)
     }
 
@@ -460,6 +489,8 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
 
     //
     // restoreCallingIdentity
+    //
+    // shutdown
     //
 
     override fun uncanonicalize(url: Uri): Uri? {
