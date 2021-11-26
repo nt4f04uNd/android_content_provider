@@ -14,32 +14,38 @@ internal class SynchronousMethodChannel(val methodChannel: MethodChannel) {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             throw IllegalStateException(
                     "Calling synchronous invokeMethod the UI thread is not supported " +
-                    "as this would lead to a deadlock")
+                            "as this would lead to a deadlock")
         }
         var completed = false
         var value: Any? = null
         var error: Exception? = null
         val lock = Object()
         handler.post {
-            methodChannel.invokeMethod(method, arguments, object : MethodChannel.Result {
-                override fun success(result: Any?) {
-                    value = result
-                    completed = true
-                    synchronized(lock) { lock.notify() }
-                }
+            try {
+                methodChannel.invokeMethod(method, arguments, object : MethodChannel.Result {
+                    override fun success(result: Any?) {
+                        value = result
+                        completed = true
+                        synchronized(lock) { lock.notify() }
+                    }
 
-                override fun error(code: String?, msg: String?, details: Any?) {
-                    error = Exception(msg)
-                    completed = true
-                    synchronized(lock) { lock.notify() }
-                }
+                    override fun error(code: String?, msg: String?, details: Any?) {
+                        error = Exception("code: $code, message: $msg, details: $details")
+                        completed = true
+                        synchronized(lock) { lock.notify() }
+                    }
 
-                override fun notImplemented() {
-                    error = Exception("Not implemented")
-                    completed = true
-                    synchronized(lock) { lock.notify() }
-                }
-            })
+                    override fun notImplemented() {
+                        error = Exception("Not implemented")
+                        completed = true
+                        synchronized(lock) { lock.notify() }
+                    }
+                })
+            } catch (e: Exception) {
+                error = e
+                completed = true
+                synchronized(lock) { lock.notify() }
+            }
         }
         try {
             synchronized(lock) {

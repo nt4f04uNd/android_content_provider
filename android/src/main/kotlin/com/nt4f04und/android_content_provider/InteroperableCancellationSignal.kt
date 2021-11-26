@@ -5,13 +5,14 @@ import android.os.Handler
 import android.os.Looper
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.StandardMethodCodec
+import java.lang.Exception
 import java.util.*
 
 class InteroperableCancellationSignal private constructor(
         binaryMessenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString(),
         private var initialized: Boolean)
-    : Interoperable<Interoperable.InteroperableMethodChannel>(
+    : Utils, Interoperable<Interoperable.InteroperableMethodChannel>(
         id,
         InteroperableMethodChannel(
                 messenger = binaryMessenger,
@@ -61,23 +62,27 @@ class InteroperableCancellationSignal private constructor(
             }
         }
         methodChannel!!.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "init" -> {
-                    initialized = true
-                    if (pendingCancel) {
-                        invokeDartCancel()
+            try {
+                when (call.method) {
+                    "init" -> {
+                        initialized = true
+                        if (pendingCancel) {
+                            invokeDartCancel()
+                        }
                     }
+                    "cancel" -> {
+                        // Save this to variable instead of nulling out setOnCancelListener,
+                        // because signal might receive have some custom listener, which for example
+                        // happens in [AndroidContentProvider]
+                        cancelledFromDart = true
+                        signal?.cancel()
+                        destroy()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
                 }
-                "cancel" -> {
-                    // Save this to variable instead of nulling out setOnCancelListener,
-                    // because signal might receive have some custom listener, which for example
-                    // happens in [AndroidContentProvider]
-                    cancelledFromDart = true
-                    signal?.cancel()
-                    destroy()
-                    result.success(null)
-                }
-                else -> result.notImplemented()
+            } catch (e : Exception) {
+                methodCallFail(result, e)
             }
         }
         signal!!.setOnCancelListener {

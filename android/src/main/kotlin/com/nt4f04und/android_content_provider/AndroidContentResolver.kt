@@ -43,9 +43,9 @@ internal class AndroidContentResolver(
 
     @Suppress("UNCHECKED_CAST")
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        val args = call.arguments as Map<String, Any>?
         var interoperableSignal: InteroperableCancellationSignal? = null
         try {
+            val args = call.arguments as Map<String, Any>?
             when (call.method) {
                 "bulkInsert" -> {
                     result.success(contentResolver.bulkInsert(
@@ -279,9 +279,7 @@ internal class AndroidContentResolver(
                 }
             }
         } catch (e: Exception) {
-            result.error("ERROR",
-                    "Method call failed",
-                    e.stackTraceToString())
+            methodCallFail(result, e)
         } finally {
             interoperableSignal?.destroy()
         }

@@ -3,6 +3,8 @@ package com.nt4f04und.android_content_provider
 import android.net.Uri
 import android.os.Bundle
 import androidx.core.os.bundleOf
+import io.flutter.plugin.common.MethodChannel
+import java.lang.Exception
 
 interface Utils {
     fun getLong(o: Any?): Long? =
@@ -30,6 +32,12 @@ interface Utils {
 
     fun getUris(value: Any?): List<Uri>? {
         return asList<String>(value)?.map { el -> Uri.parse(el) }
+    }
+
+    fun methodCallFail(result: MethodChannel.Result, e: Exception) {
+        result.error("ERROR",
+                "Method call failed",
+                e.stackTraceToString())
     }
 
     fun throwApiLevelError(level: Int) {

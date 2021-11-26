@@ -121,56 +121,60 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                         BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
         @Suppress("UNCHECKED_CAST")
         methodChannel!!.methodChannel.setMethodCallHandler { call, result ->
-            val args = call.arguments as Map<String, Any>?
-            when (call.method) {
-                "clearCallingIdentity" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val identity = clearCallingIdentity()
-                        val id = RegistrableCallingIdentity.register(identity)
-                        result.success(id)
-                    } else {
-                        result.success(null)
-                    }
-                }
-                "getCallingAttributionTag" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        result.success(localCallingAttributionTag)
-                    } else {
-                        result.success(null)
-                    }
-                }
-                "getCallingPackage" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                        if (localCallingPackageSecurityException == null) {
-                            result.success(localCallingPackage)
+            try {
+                val args = call.arguments as Map<String, Any>?
+                when (call.method) {
+                    "clearCallingIdentity" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val identity = clearCallingIdentity()
+                            val id = RegistrableCallingIdentity.register(identity)
+                            result.success(id)
                         } else {
-                            result.error(
-                                    "SecurityException",
-                                    localCallingPackageSecurityException!!.message,
-                                    localCallingPackageSecurityException!!.stackTraceToString())
+                            result.success(null)
                         }
-                    } else {
-                        result.success(null)
                     }
-                }
-                "getCallingPackageUnchecked" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        result.success(localCallingPackageUnchecked)
-                    } else {
-                        result.success(null)
+                    "getCallingAttributionTag" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            result.success(localCallingAttributionTag)
+                        } else {
+                            result.success(null)
+                        }
                     }
-                }
-                "restoreCallingIdentity" -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val identityId = args!!["identity"] as String
-                        val identity = RegistrableCallingIdentity.unregister(identityId)
-                        restoreCallingIdentity(identity!!)
-                        result.success(null)
-                    } else {
-                        result.success(null)
+                    "getCallingPackage" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                            if (localCallingPackageSecurityException == null) {
+                                result.success(localCallingPackage)
+                            } else {
+                                result.error(
+                                        "SecurityException",
+                                        localCallingPackageSecurityException!!.message,
+                                        localCallingPackageSecurityException!!.stackTraceToString())
+                            }
+                        } else {
+                            result.success(null)
+                        }
                     }
+                    "getCallingPackageUnchecked" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            result.success(localCallingPackageUnchecked)
+                        } else {
+                            result.success(null)
+                        }
+                    }
+                    "restoreCallingIdentity" -> {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val identityId = args!!["identity"] as String
+                            val identity = RegistrableCallingIdentity.unregister(identityId)
+                            restoreCallingIdentity(identity!!)
+                            result.success(null)
+                        } else {
+                            result.success(null)
+                        }
+                    }
+                    else -> result.notImplemented()
                 }
-                else -> result.notImplemented()
+            } catch (e : Exception) {
+                methodCallFail(result, e)
             }
         }
         return true
@@ -183,6 +187,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     }
 
     /** Calls [MethodChannel.invokeMethod], not blocking the caller thread. */
+    @SuppressWarnings("WeakerAccess")
     protected fun asyncInvokeMethod(method: String, arguments: Any?) {
         Handler(Looper.getMainLooper()).post {
             methodChannel!!.methodChannel.invokeMethod(method, arguments)
