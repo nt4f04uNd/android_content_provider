@@ -109,6 +109,13 @@ Future<void> main() async {
     IsolateNameServer.removePortNameMapping('main');
     IsolateNameServer.registerPortWithName(hostedPort.sendPort, 'main');
 
+    // Ping "contentProvider" isolate hosted port
+    final receivePort = ReceivePort();
+    IsolateNameServer.lookupPortByName('contentProvider')!
+        .send(receivePort.sendPort);
+    expect(await receivePort.first, 'send back');
+    receivePort.close();
+
     // Send response to hosted port ping.
     //
     // This also waits before all tests will run in the content provider isolate,
@@ -116,13 +123,6 @@ Future<void> main() async {
     final responsePort = await hostedPort.first;
     responsePort.send('send back');
     hostedPort.close();
-
-    // Ping "contentProvider" isolate hosted port
-    final receivePort2 = ReceivePort();
-    IsolateNameServer.lookupPortByName('contentProvider')!
-        .send(receivePort2.sendPort);
-    expect(await receivePort2.first, 'send back');
-    receivePort2.close();
   });
 
   test("ContentValues overflow", () async {
@@ -509,6 +509,14 @@ const callingInfoTest = 'callingInfo';
 
 @pragma('vm:entry-point')
 void integrationTestContentProviderEntrypoint() async {
+  // Initialize the port as soon as we can
+  final ReceivePort hostedPort = ReceivePort();
+  IsolateNameServer.removePortNameMapping('contentProvider');
+  IsolateNameServer.registerPortWithName(
+    hostedPort.sendPort,
+    'contentProvider',
+  );
+
   late final IntegrationTestAndroidContentProvider provider;
   setUpAll(() {
     // wrap into a setUp to allow `expect`s and other test related APIs to work
@@ -518,23 +526,16 @@ void integrationTestContentProviderEntrypoint() async {
   tearDownAll(() async {
     // See the "ContentProvider isolate communication" test
 
-    final hostedPort = ReceivePort();
-    IsolateNameServer.removePortNameMapping('contentProvider');
-    IsolateNameServer.registerPortWithName(
-      hostedPort.sendPort,
-      'contentProvider',
-    );
+    // Send response to hosted port ping
+    final responsePort = await hostedPort.first;
+    responsePort.send('send back');
+    hostedPort.close();
 
     // Ping "main" isolate hosted port
     final receivePort = ReceivePort();
     IsolateNameServer.lookupPortByName('main')!.send(receivePort.sendPort);
     expect(await receivePort.first, 'send back');
     receivePort.close();
-
-    // Send response to hosted port ping
-    final responsePort = await hostedPort.first;
-    responsePort.send('send back');
-    hostedPort.close();
   });
 
   test("clearCallingIdentity and restoreCallingIdentity", () async {
