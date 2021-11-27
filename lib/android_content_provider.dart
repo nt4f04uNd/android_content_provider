@@ -307,15 +307,6 @@ class _NumberWrapper<T extends num> {
 
   /// Wrapped number value.
   final T value;
-
-  @override
-  bool operator ==(Object other) {
-    return other is num && other == value ||
-        other is _NumberWrapper && other.value == value;
-  }
-
-  @override
-  int get hashCode => value.hashCode;
 }
 
 /// A wrapper for value in [ContentValues.putByte].

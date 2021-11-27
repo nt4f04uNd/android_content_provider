@@ -45,7 +45,7 @@ void main() {
     });
 
     test('equality', () {
-      final values = ContentValues();
+      final values = createValues();
       values.putString(someKey, someValue);
       expect(values, ContentValues.copyFrom(values));
       expect(values, isNot(ContentValues()));
