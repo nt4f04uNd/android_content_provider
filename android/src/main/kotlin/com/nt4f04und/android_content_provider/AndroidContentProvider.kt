@@ -20,9 +20,7 @@ import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
-import java.io.FileDescriptor
 import java.io.FileNotFoundException
-import java.io.PrintWriter
 import java.lang.Exception
 
 
@@ -40,7 +38,8 @@ import java.lang.Exception
 abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
     private var lifecycle: LifecycleRegistry? = null
     private lateinit var engine: FlutterEngine
-    private var methodChannel: SynchronousMethodChannel? = null
+    private lateinit var methodChannel: SynchronousMethodChannel
+    private lateinit var trackingMapFactory: TrackingMapFactory
 
     companion object {
         private var flutterLoader: FlutterLoader? = null
@@ -113,6 +112,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         ensureLifecycleInitialized()
         lifecycle!!.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle!!)
+        trackingMapFactory = TrackingMapFactory(engine.dartExecutor.binaryMessenger)
         methodChannel = SynchronousMethodChannel(MethodChannel(
                 engine.dartExecutor.binaryMessenger,
                 "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
@@ -120,7 +120,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                 engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
                         BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
         @Suppress("UNCHECKED_CAST")
-        methodChannel!!.methodChannel.setMethodCallHandler { call, result ->
+        methodChannel.methodChannel.setMethodCallHandler { call, result ->
             try {
                 val args = call.arguments as Map<String, Any>?
                 when (call.method) {

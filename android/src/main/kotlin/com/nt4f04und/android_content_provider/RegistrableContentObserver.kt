@@ -8,39 +8,43 @@ import io.flutter.plugin.common.BinaryMessenger
 import java.util.*
 
 class RegistrableContentObserver private constructor(
-        binaryMessenger: BinaryMessenger,
+        messenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString())
     : Registrable<Interoperable.InteroperableMethodChannel>(
+        messenger,
         id,
+        AndroidContentProviderPlugin.TrackingMapKeys.CONTENT_OBSERVER.value,
         InteroperableMethodChannel(
-                messenger = binaryMessenger,
+                messenger = messenger,
                 classId = "${AndroidContentProviderPlugin.channelPrefix}/ContentObserver",
                 id = id,
                 codec = AndroidContentProviderPlugin.pluginMethodCodec)) {
 
     companion object : RegistrableCompanion<RegistrableContentObserver> {
-        private val staticRegistry = Registry<RegistrableContentObserver>()
+        private fun getRegistry(messenger: BinaryMessenger): Registry<RegistrableContentObserver> {
+            return Registry(
+                    messenger,
+                    AndroidContentProviderPlugin.TrackingMapKeys.CONTENT_OBSERVER.value)
+        }
 
-        override fun get(id: String): RegistrableContentObserver? {
-            return staticRegistry[id]
+        override fun get(messenger: BinaryMessenger, id: String): RegistrableContentObserver? {
+            return getRegistry(messenger)[id]
         }
 
         @Synchronized
-        override fun register(binaryMessenger: BinaryMessenger, id: String): RegistrableContentObserver {
-            return staticRegistry.register(id) { RegistrableContentObserver(binaryMessenger, id) }
+        override fun register(messenger: BinaryMessenger, id: String): RegistrableContentObserver {
+            return getRegistry(messenger).register(id) { RegistrableContentObserver(messenger, id) }
         }
 
         @Synchronized
-        override fun unregister(id: String): RegistrableContentObserver? {
-            return staticRegistry.unregister(id)
+        override fun unregister(messenger: BinaryMessenger, id: String): RegistrableContentObserver? {
+            return getRegistry(messenger).unregister(id)
         }
     }
 
     var observer: Observer? = null
-    override val registry: Registry<RegistrableContentObserver>
-        get() = staticRegistry
-    private val methodChannel
-        get() = channel?.channel
+    override val registry get() = getRegistry(messenger)
+    private val methodChannel get() = channel?.channel
 
     init {
         observer = Observer(this)

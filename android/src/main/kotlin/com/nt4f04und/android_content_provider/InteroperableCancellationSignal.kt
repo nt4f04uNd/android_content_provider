@@ -9,30 +9,31 @@ import java.lang.Exception
 import java.util.*
 
 class InteroperableCancellationSignal private constructor(
-        binaryMessenger: BinaryMessenger,
+        messenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString(),
         private var initialized: Boolean)
     : Utils, Interoperable<Interoperable.InteroperableMethodChannel>(
+        messenger,
         id,
+        AndroidContentProviderPlugin.TrackingMapKeys.CANCELLATION_SIGNAL.value,
         InteroperableMethodChannel(
-                messenger = binaryMessenger,
+                messenger = messenger,
                 classId = "${AndroidContentProviderPlugin.channelPrefix}/CancellationSignal",
                 id = id,
                 codec = StandardMethodCodec.INSTANCE)) {
 
-    constructor(binaryMessenger: BinaryMessenger,
+    constructor(messenger: BinaryMessenger,
                 id: String = UUID.randomUUID().toString())
-            : this(binaryMessenger, id, false)
+            : this(messenger, id, false)
 
     companion object {
-        fun fromId(binaryMessenger: BinaryMessenger, id: String): InteroperableCancellationSignal {
-            return InteroperableCancellationSignal(binaryMessenger, id, true)
+        fun fromId(messenger: BinaryMessenger, id: String): InteroperableCancellationSignal {
+            return InteroperableCancellationSignal(messenger, id, true)
         }
     }
 
     var signal: CancellationSignal? = CancellationSignal()
-    private val methodChannel
-        get() = channel?.channel
+    private val methodChannel get() = channel?.channel
 
     init {
         if (initialized) {

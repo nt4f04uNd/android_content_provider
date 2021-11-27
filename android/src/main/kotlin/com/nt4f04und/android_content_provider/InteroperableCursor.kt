@@ -11,18 +11,24 @@ import java.util.*
 class InteroperableCursor(
         private val contentResolver: ContentResolver,
         private val cursor: Cursor,
-        binaryMessenger: BinaryMessenger,
+        messenger: BinaryMessenger,
         id: String = UUID.randomUUID().toString())
     : Utils, Interoperable<Interoperable.InteroperableMethodChannel>(
+        messenger,
         id,
+        AndroidContentProviderPlugin.TrackingMapKeys.CURSOR.value,
         InteroperableMethodChannel(
-                messenger = binaryMessenger,
+                messenger = messenger,
                 classId = "${AndroidContentProviderPlugin.channelPrefix}/Cursor",
                 id = id,
                 codec = AndroidContentProviderPlugin.pluginMethodCodec)) {
 
-    private val methodChannel
-        get() = channel?.channel
+    private val methodChannel get() = channel?.channel
+
+    override fun destroy() {
+        super.destroy()
+        cursor.close()
+    }
 
     init {
         @Suppress("UNCHECKED_CAST")
@@ -31,7 +37,6 @@ class InteroperableCursor(
                 val args = call.arguments as Map<String, Any?>?
                 when (call.method) {
                     "close" -> {
-                        cursor.close()
                         destroy()
                         result.success(null)
                     }
@@ -55,13 +60,13 @@ class InteroperableCursor(
                     }
                     "registerContentObserver" -> {
                         val observerId = args!!["observer"] as String
-                        val registrableObserver = RegistrableContentObserver.register(binaryMessenger, observerId)
+                        val registrableObserver = RegistrableContentObserver.register(messenger, observerId)
                         cursor.registerContentObserver(registrableObserver.observer)
                         result.success(null)
                     }
                     "unregisterContentObserver" -> {
                         val observerId = args!!["observer"] as String
-                        val registrableObserver = RegistrableContentObserver.unregister(observerId)
+                        val registrableObserver = RegistrableContentObserver.unregister(messenger, observerId)
                         registrableObserver?.let {
                             cursor.unregisterContentObserver(registrableObserver.observer)
                         }

@@ -14,14 +14,14 @@ import java.io.ByteArrayOutputStream
 
 internal class AndroidContentResolver(
         private val context: Context,
-        private val binaryMessenger: BinaryMessenger)
+        private val messenger: BinaryMessenger)
     : MethodChannel.MethodCallHandler, Utils {
 
     private val methodChannel: MethodChannel = MethodChannel(
-            binaryMessenger,
+            messenger,
             "${AndroidContentProviderPlugin.channelPrefix}/ContentResolver",
             AndroidContentProviderPlugin.pluginMethodCodec,
-            binaryMessenger.makeBackgroundTaskQueue(
+            messenger.makeBackgroundTaskQueue(
                     BinaryMessenger.TaskQueueOptions().setIsSerial(false)))
 
     init {
@@ -121,7 +121,7 @@ internal class AndroidContentResolver(
                         result.success(contentResolver.insert(
                                 getUri(args!!["uri"]),
                                 args["values"] as ContentValues?,
-                                mapToBundle(asMap(args!!["extras"]))))
+                                mapToBundle(asMap(args["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.R)
                     }
@@ -129,7 +129,7 @@ internal class AndroidContentResolver(
                 "loadThumbnail" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         val cancellationSignalId = args!!["cancellationSignal"] as String?
-                        cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
+                        cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(messenger, it) }
                         result.success(bitmapToBytes(contentResolver.loadThumbnail(
                                 getUri(args["uri"]),
                                 Size(getLong(args["width"])!!.toInt(),
@@ -142,7 +142,7 @@ internal class AndroidContentResolver(
                 "notifyChange" -> {
                     val observerId = args!!["observer"] as String?
                     var registrableObserver: RegistrableContentObserver? = null
-                    observerId?.let { registrableObserver = RegistrableContentObserver.get(it) }
+                    observerId?.let { registrableObserver = RegistrableContentObserver.get(messenger, it) }
                     val flags = args["flags"] as Int?
                     if (flags != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                         contentResolver.notifyChange(
@@ -161,7 +161,7 @@ internal class AndroidContentResolver(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         val observerId = args!!["observer"] as String?
                         var registrableObserver: RegistrableContentObserver? = null
-                        observerId?.let { registrableObserver = RegistrableContentObserver.get(it) }
+                        observerId?.let { registrableObserver = RegistrableContentObserver.get(messenger, it) }
                         contentResolver.notifyChange(
                                 getUris(args["uris"])!!,
                                 registrableObserver?.observer,
@@ -182,12 +182,12 @@ internal class AndroidContentResolver(
                     val interoperableCursor = InteroperableCursor(
                             contentResolver,
                             cursor,
-                            binaryMessenger)
+                            messenger)
                     result.success(interoperableCursor.id)
                 }
                 "queryWithSignal" -> {
                     val cancellationSignalId = args!!["cancellationSignal"] as String?
-                    cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
+                    cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(messenger, it) }
                     val cursor = contentResolver.query(
                             getUri(args["uri"]),
                             listAsArray<String?>(args["projection"]),
@@ -199,13 +199,13 @@ internal class AndroidContentResolver(
                     val interoperableCursor = InteroperableCursor(
                             contentResolver,
                             cursor,
-                            binaryMessenger)
+                            messenger)
                     result.success(interoperableCursor.id)
                 }
                 "queryWithExtras" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val cancellationSignalId = args!!["cancellationSignal"] as String?
-                        cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
+                        cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(messenger, it) }
                         val cursor = contentResolver.query(
                                 getUri(args["uri"]),
                                 listAsArray<String?>(args["projection"]),
@@ -215,7 +215,7 @@ internal class AndroidContentResolver(
                         val interoperableCursor = InteroperableCursor(
                                 contentResolver,
                                 cursor,
-                                binaryMessenger)
+                                messenger)
                         result.success(interoperableCursor.id)
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.O)
@@ -224,7 +224,7 @@ internal class AndroidContentResolver(
                 "refresh" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         val cancellationSignalId = args!!["cancellationSignal"] as String?
-                        cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(binaryMessenger, it) }
+                        cancellationSignalId?.let { interoperableSignal = InteroperableCancellationSignal.fromId(messenger, it) }
                         result.success(contentResolver.refresh(
                                 getUri(args["uri"]),
                                 mapToBundle(asMap(args["extras"])),
@@ -235,7 +235,7 @@ internal class AndroidContentResolver(
                 }
                 "registerContentObserver" -> {
                     val observerId = args!!["observer"] as String
-                    val registrableObserver = RegistrableContentObserver.register(binaryMessenger, observerId)
+                    val registrableObserver = RegistrableContentObserver.register(messenger, observerId)
                     contentResolver.registerContentObserver(
                             getUri(args["uri"]),
                             args["notifyForDescendants"] as Boolean,
@@ -251,7 +251,7 @@ internal class AndroidContentResolver(
                 }
                 "unregisterContentObserver" -> {
                     val observerId = args!!["observer"] as String
-                    val observer = RegistrableContentObserver.unregister(observerId)
+                    val observer = RegistrableContentObserver.unregister(messenger, observerId)
                     observer?.observer?.let {
                         contentResolver.unregisterContentObserver(it)
                     }

@@ -523,15 +523,17 @@ class NativeCursor extends Interoperable {
     return '${objectRuntimeType(this, 'NativeCursor')}($id)';
   }
 
-  bool get closed => _closed;
   bool _closed = false;
 
-  Future<void> close() {
-    _closed = true;
-    return _methodChannel.invokeMethod<void>('close');
+  Future<void> close() async {
+    if (!_closed) {
+      _closed = true;
+      return _methodChannel.invokeMethod<void>('close');
+    }
   }
 
   Future<bool> move(int offset) async {
+    assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('move', {
       'offset': offset,
     });
@@ -539,6 +541,7 @@ class NativeCursor extends Interoperable {
   }
 
   Future<bool> moveToPosition(int position) async {
+    assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToPosition', {
       'position': position,
     });
@@ -546,32 +549,38 @@ class NativeCursor extends Interoperable {
   }
 
   Future<bool> moveToFirst() async {
+    assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToFirst');
     return result!;
   }
 
   Future<bool> moveToLast() async {
+    assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToLast');
     return result!;
   }
 
   Future<bool> moveToNext() async {
+    assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToNext');
     return result!;
   }
 
   Future<bool> moveToPrevious() async {
+    assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToPrevious');
     return result!;
   }
 
   Future<void> registerContentObserver(ContentObserver observer) {
+    assert(!_closed);
     return _methodChannel.invokeMethod<bool>('registerContentObserver', {
       'observer': observer.id,
     });
   }
 
   Future<void> unregisterContentObserver(ContentObserver observer) {
+    assert(!_closed);
     return _methodChannel.invokeMethod<bool>('unregisterContentObserver', {
       'observer': observer.id,
     });
@@ -591,6 +600,7 @@ class NativeCursor extends Interoperable {
   //
 
   Future<void> setNotificationUri(String uri) {
+    assert(!_closed);
     return _methodChannel.invokeMethod<bool>('setNotificationUri', {
       'uri': uri,
     });
@@ -598,6 +608,7 @@ class NativeCursor extends Interoperable {
 
   @RequiresApiOrNoop(29)
   Future<void> setNotificationUris(List<String> uris) {
+    assert(!_closed);
     return _methodChannel.invokeMethod<bool>('setNotificationUris', {
       'uris': uris,
     });
@@ -605,28 +616,33 @@ class NativeCursor extends Interoperable {
 
   @RequiresApiOrNoop(19)
   Future<String?> getNotificationUri() {
+    assert(!_closed);
     return _methodChannel.invokeMethod<String>('getNotificationUri');
   }
 
   @RequiresApiOrNoop(29)
   Future<List<String>?> getNotificationUris() {
+    assert(!_closed);
     return _methodChannel.invokeListMethod<String>('getNotificationUris');
   }
 
   @RequiresApiOrNoop(23)
   Future<void> setExtras(BundleMap extras) {
+    assert(!_closed);
     return _methodChannel.invokeMethod<bool>('setExtras', {
       'extras': extras,
     });
   }
 
   Future<BundleMap> getExtras() async {
+    assert(!_closed);
     final result =
         await _methodChannel.invokeMapMethod<String, Object?>('getExtras');
     return result!;
   }
 
   Future<BundleMap> respond(BundleMap extras) async {
+    assert(!_closed);
     final result = await _methodChannel
         .invokeMapMethod<String, Object?>('respond', {'extras': extras});
     return result!;
@@ -953,6 +969,14 @@ class CursorRangeError extends RangeError {
 }
 
 /// An object that can be associated with some native counterpart instance.
+///
+/// Typically has a [MethodChannel], but that's not necessary.
+///
+/// Known interoperables:
+///  * [CallingIdentity]
+///  * [NativeCursor]
+///  * [ReceivedCancellationSignal] and [CancellationSignal]
+///  * [ContentObserver]
 abstract class Interoperable {
   /// Creates an object with UUID v4 [id].
   ///
@@ -1071,6 +1095,7 @@ class ReceivedCancellationSignal extends Interoperable {
   ///
   /// This is called automatically by [AndroidContentResolver]
   /// when the method call ends.
+  @mustCallSuper
   void dispose() {
     _disposed = true;
     _methodChannel.setMethodCallHandler(null);
@@ -1655,7 +1680,6 @@ abstract class AndroidContentProvider {
     });
   }
 
-
   // shutdown(): Unit
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#shutdown
   //
@@ -1772,8 +1796,8 @@ abstract class ContentObserver extends Interoperable {
 
   Future<dynamic> _handleMethodCall(MethodCall methodCall) async {
     final BundleMap? args = _asMap<String, Object?>(methodCall.arguments);
-    // сatch and report the exceptions, because the calls are made by the system which
-    // otherwise swallows them
+    // Catch and report the exceptions, because the calls are made by the system which
+    // otherwise swallows them.
     switch (methodCall.method) {
       case 'onChange':
         try {
@@ -1836,6 +1860,12 @@ abstract class ContentObserver extends Interoperable {
     for (final uri in uris) {
       onChange(selfChange, uri, flags);
     }
+  }
+
+  /// Disposes the content observer, so it no longer receives updates.
+  @mustCallSuper
+  void dispose() {
+    _methodChannel.setMethodCallHandler(null);
   }
 
   // Dispatch methods are not exposed. They can only be useful to dispatch
@@ -2184,14 +2214,18 @@ class AndroidContentResolver {
     required int height,
     CancellationSignal? cancellationSignal,
   }) async {
-    final result =
-        await _methodChannel.invokeMethod<Uint8List>('loadThumbnail', {
-      'uri': uri,
-      'width': width,
-      'height': height,
-      'cancellationSignal': cancellationSignal?.id,
-    });
-    return result!;
+    try {
+      final result =
+          await _methodChannel.invokeMethod<Uint8List>('loadThumbnail', {
+        'uri': uri,
+        'width': width,
+        'height': height,
+        'cancellationSignal': cancellationSignal?.id,
+      });
+      return result!;
+    } finally {
+      cancellationSignal?.dispose();
+    }
   }
 
   /// notifyChange(uri: Uri, observer: ContentObserver?): Unit
@@ -2302,16 +2336,20 @@ class AndroidContentResolver {
     String? sortOrder,
     CancellationSignal? cancellationSignal,
   }) async {
-    final result =
-        await _methodChannel.invokeMethod<String>('queryWithSignal', {
-      'uri': uri,
-      'projection': projection,
-      'selection': selection,
-      'selectionArgs': selectionArgs,
-      'sortOrder': sortOrder,
-      'cancellationSignal': cancellationSignal?.id,
-    });
-    return result == null ? null : NativeCursor.fromId(result);
+    try {
+      final result =
+          await _methodChannel.invokeMethod<String>('queryWithSignal', {
+        'uri': uri,
+        'projection': projection,
+        'selection': selection,
+        'selectionArgs': selectionArgs,
+        'sortOrder': sortOrder,
+        'cancellationSignal': cancellationSignal?.id,
+      });
+      return result == null ? null : NativeCursor.fromId(result);
+    } finally {
+      cancellationSignal?.dispose();
+    }
   }
 
   /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
@@ -2323,14 +2361,18 @@ class AndroidContentResolver {
     BundleMap? queryArgs,
     CancellationSignal? cancellationSignal,
   }) async {
-    final result =
-        await _methodChannel.invokeMethod<String>('queryWithExtras', {
-      'uri': uri,
-      'projection': projection,
-      'queryArgs': queryArgs,
-      'cancellationSignal': cancellationSignal?.id,
-    });
-    return result == null ? null : NativeCursor.fromId(result);
+    try {
+      final result =
+          await _methodChannel.invokeMethod<String>('queryWithExtras', {
+        'uri': uri,
+        'projection': projection,
+        'queryArgs': queryArgs,
+        'cancellationSignal': cancellationSignal?.id,
+      });
+      return result == null ? null : NativeCursor.fromId(result);
+    } finally {
+      cancellationSignal?.dispose();
+    }
   }
 
   /// refresh(uri: Uri, extras: Bundle?, cancellationSignal: CancellationSignal?): Boolean
@@ -2341,12 +2383,16 @@ class AndroidContentResolver {
     BundleMap? extras,
     CancellationSignal? cancellationSignal,
   }) async {
-    final result = await _methodChannel.invokeMethod<bool>('refresh', {
-      'uri': uri,
-      'extras': extras,
-      'cancellationSignal': cancellationSignal?.id,
-    });
-    return result!;
+    try {
+      final result = await _methodChannel.invokeMethod<bool>('refresh', {
+        'uri': uri,
+        'extras': extras,
+        'cancellationSignal': cancellationSignal?.id,
+      });
+      return result!;
+    } finally {
+      cancellationSignal?.dispose();
+    }
   }
 
   /// registerContentObserver(uri: Uri, notifyForDescendants: Boolean, observer: ContentObserver): Unit

@@ -8,7 +8,6 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodCodec
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Creates a class that can have a dart counterpart.
@@ -23,12 +22,22 @@ import java.util.concurrent.ConcurrentHashMap
  * Otherwise use [Registrable].
  */
 abstract class Interoperable<T : Interoperable.InteroperableChannel>(
+        val messenger: BinaryMessenger,
         val id: String,
+        private val trackingId: String,
         protected var channel: T?
 ) {
+    private val tracker = TrackingMapFactory.get(messenger)
+            .getMap<String, Interoperable<T>>(trackingId)
+
+    init {
+        tracker[id] = this
+    }
+
     /** Releases the object resources. Closes channels by default. */
     @CallSuper
-    protected open fun destroy() {
+    open fun destroy() {
+        tracker.remove(id)
         channel?.let {
             it.destroy()
             channel = null
@@ -42,14 +51,6 @@ abstract class Interoperable<T : Interoperable.InteroperableChannel>(
     ) {
         abstract fun destroy()
 
-        companion object {
-            private val taskQueueMap = ConcurrentHashMap<TaskQueueKey, BinaryMessenger.TaskQueue>()
-        }
-
-        private data class TaskQueueKey(
-                private val binaryMessenger: BinaryMessenger,
-                private val id: String)
-
         /**
          * Creates a background queue per [classId] and [messenger].
          *
@@ -60,12 +61,14 @@ abstract class Interoperable<T : Interoperable.InteroperableChannel>(
             if (classId.split("/").size != 2) {
                 throw IllegalArgumentException("classId had invalid format. It must have the following format 'authority/Class'")
             }
-            val key = TaskQueueKey(messenger, classId)
-            var taskQueue = taskQueueMap[key]
+            val taskQueueMap = TrackingMapFactory.get(messenger)
+                    .getMap<String, BinaryMessenger.TaskQueue>(
+                            AndroidContentProviderPlugin.TrackingMapKeys.BACKGROUND_TASK_QUEUES.value)
+            var taskQueue = taskQueueMap[classId]
             if (taskQueue == null) {
                 taskQueue = messenger.makeBackgroundTaskQueue(
                         BinaryMessenger.TaskQueueOptions().setIsSerial(false))
-                taskQueueMap[key] = taskQueue
+                taskQueueMap[classId] = taskQueue
             }
             return taskQueue!!
         }
@@ -153,9 +156,11 @@ abstract class Interoperable<T : Interoperable.InteroperableChannel>(
  * Otherwise use [Interoperable].
  */
 abstract class Registrable<T : Interoperable.InteroperableChannel>(
+        messenger: BinaryMessenger,
         id: String,
+        trackingId: String,
         channel: T?
-) : Interoperable<T>(id, channel) {
+) : Interoperable<T>(messenger, id, trackingId, channel) {
     protected abstract val registry: Registry<out Registrable<T>>
 
     /**
@@ -173,13 +178,13 @@ abstract class Registrable<T : Interoperable.InteroperableChannel>(
     /** An interface to be implemented by a companion of a [Registrable] subclass. */
     interface RegistrableCompanion<T : Registrable<out InteroperableChannel>> {
         /** Should return an object from [Registrable.registry] */
-        fun get(id: String): T?
+        fun get(messenger: BinaryMessenger, id: String): T?
 
         /** Should call [Registry.register] */
-        fun register(binaryMessenger: BinaryMessenger, id: String): T
+        fun register(messenger: BinaryMessenger, id: String): T
 
         /** Should call [Registry.unregister] */
-        fun unregister(id: String): T?
+        fun unregister(messenger: BinaryMessenger, id: String): T?
     }
 
     /**
@@ -193,45 +198,45 @@ abstract class Registrable<T : Interoperable.InteroperableChannel>(
      * When this amount reaches 0, the [Registrable.destroy] is called, and
      * the instance is removed from the registry.
      */
-    class Registry<T : Registrable<out InteroperableChannel>> {
-        private val registryMap = ConcurrentHashMap<String, ObjectRegistryObjectEntry>()
-
-        private class ObjectRegistryObjectEntry(val value: Registrable<out InteroperableChannel>) {
-            var registrationCount: Int = 0
-        }
+    class Registry<T : Registrable<out InteroperableChannel>>(
+            messenger: BinaryMessenger,
+            registryId: String) {
+        private val registrationCountMap = TrackingMapFactory.get(messenger).getUntrackedMap<String, Int>(registryId)
+        private val registryMap = TrackingMapFactory.get(messenger).getMap<String, T>(registryId)
 
         /** Registers an object and returns it. */
-        @Synchronized
         fun register(id: String, factory: () -> T): T {
-            var entry = registryMap[id]
-            if (entry == null) {
-                entry = ObjectRegistryObjectEntry(factory())
-                registryMap[id] = entry
+            synchronized(registryMap) {
+                var entry = registryMap[id]
+                if (entry == null) {
+                    entry = factory()
+                    registryMap[id] = entry
+                    registrationCountMap[id] = 0
+                }
+                registrationCountMap[id] = registrationCountMap[id]!! + 1
+                return entry
             }
-            entry.registrationCount += 1
-            @Suppress("UNCHECKED_CAST")
-            return entry.value as T
         }
 
         /** Unregisters an object and returns it. */
-        @Synchronized
         fun unregister(id: String): T? {
-            val entry = registryMap[id]
-            entry?.let {
-                if (entry.registrationCount == 1) {
-                    registryMap.remove(id)?.value?.destroy()
-                } else {
-                    entry.registrationCount -= 1
+            synchronized(registryMap) {
+                val entry = registryMap[id]
+                entry?.let {
+                    if (registrationCountMap[id] == 1) {
+                        registrationCountMap.remove(id)
+                        registryMap.remove(id)?.destroy()
+                    } else {
+                        registrationCountMap[id] = registrationCountMap[id]!! - 1
+                    }
                 }
+                return entry
             }
-            @Suppress("UNCHECKED_CAST")
-            return entry?.value as T?
         }
 
         /** [] get operator */
         operator fun get(id: String): T? {
-            @Suppress("UNCHECKED_CAST")
-            return registryMap[id]?.value as T?
+            return registryMap[id]
         }
     }
 }

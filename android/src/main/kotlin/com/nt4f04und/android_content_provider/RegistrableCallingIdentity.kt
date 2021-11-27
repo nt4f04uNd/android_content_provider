@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap
 @RequiresApi(Build.VERSION_CODES.Q)
 abstract class RegistrableCallingIdentity {
     companion object {
+        // No need for tracking since can only be created in ContentProvider, which runs indefinitely
         private val map = ConcurrentHashMap<String, ContentProvider.CallingIdentity>()
 
         fun register(value: ContentProvider.CallingIdentity): String {
