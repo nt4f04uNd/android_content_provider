@@ -42,18 +42,9 @@ class RegistrableContentObserver private constructor(
         }
     }
 
-    var observer: Observer? = null
+    val observer: Observer = Observer(this)
     override val registry get() = getRegistry(messenger)
     private val methodChannel get() = channel?.channel
-
-    init {
-        observer = Observer(this)
-    }
-
-    override fun destroy() {
-        super.destroy()
-        observer = null
-    }
 
     class Observer(
             private val registryObserver: RegistrableContentObserver)

@@ -67,8 +67,8 @@ class InteroperableCursor(
                     "unregisterContentObserver" -> {
                         val observerId = args!!["observer"] as String
                         val registrableObserver = RegistrableContentObserver.unregister(messenger, observerId)
-                        registrableObserver?.let {
-                            cursor.unregisterContentObserver(registrableObserver.observer)
+                        registrableObserver?.observer.let {
+                            cursor.unregisterContentObserver(it)
                         }
                         result.success(null)
                     }

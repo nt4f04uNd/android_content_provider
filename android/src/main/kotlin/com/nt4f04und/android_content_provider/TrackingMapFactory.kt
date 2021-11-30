@@ -20,8 +20,6 @@ class TrackingMapFactory(private val messenger: BinaryMessenger) {
      * clean the map with the matching ID, disposing claimed resources, if necessary.
      */
     fun destroy(clearingOperations: Map<String, ((ConcurrentHashMap<*, *>) -> Unit)?>) {
-        factories.remove(messenger)
-        untrackedMapPool.clear()
         for (entry in mapPool.entries) {
             val clearingOperation = clearingOperations[entry.key]
             clearingOperation?.invoke(entry.value)
@@ -35,6 +33,8 @@ class TrackingMapFactory(private val messenger: BinaryMessenger) {
                                 else "")
             }
         }
+        untrackedMapPool.clear()
+        factories.remove(messenger)
     }
 
     companion object {

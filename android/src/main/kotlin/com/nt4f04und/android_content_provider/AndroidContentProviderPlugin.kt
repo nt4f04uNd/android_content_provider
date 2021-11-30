@@ -51,9 +51,7 @@ class AndroidContentProviderPlugin : FlutterPlugin {
                             val registrableContentObserver = interoperable as RegistrableContentObserver
                             RegistrableContentObserver.unregister(binding.binaryMessenger, registrableContentObserver.id)
                             val observer = registrableContentObserver.observer
-                            if (observer != null) {
-                                binding.applicationContext.contentResolver.unregisterContentObserver(observer)
-                            }
+                            binding.applicationContext.contentResolver.unregisterContentObserver(observer)
                         }
                     },
             ))
