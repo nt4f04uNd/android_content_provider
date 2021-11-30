@@ -8,12 +8,11 @@ void main() {
 }
 
 
-// TODO tests
-// TODO think about how to group them in files - in relation to this, how to split the main plugin's file as well
+// TODO unit tests. integration tests have almost 100% coverage
 //
 // * (done) CallingIdentity
 // * (done) ContentValues
-// * AndroidContentProviderMessageCodec
+// * (do we need to test it???) AndroidContentProviderMessageCodec
 // * NativeCursor
 // * NativeCursorGetBatch
 // * CursorData
@@ -21,6 +20,7 @@ void main() {
 // * MatrixCursorDataRowBuilder
 // * CursorRangeError
 // * Interoperable
+// * (done) Closeable and autoCloseScope
 // * CancellationSignal
 // * AndroidContentProvider
 // * (done) MimeTypeInfo
