@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:android_content_provider/android_content_provider.dart';
 
@@ -172,7 +173,7 @@ Future<void> main() async {
         isA<TestFailure>().having((e) => e.message, 'message', 'dummy fail'),
       );
     } finally {
-      await AndroidContentResolver.instance.unregisterContentObserver(observer);
+      // await AndroidContentResolver.instance.unregisterContentObserver(observer);
     }
   });
 
@@ -375,8 +376,71 @@ Future<void> main() async {
     test("query and queryWithExtras", () async {
       Future<void> doTest(NativeCursor? cursor) async {
         expect(cursor, isNotNull);
+        expect(await cursor!.move(0), false);
+        expect(await cursor.moveToPosition(0), true);
+        expect(await cursor.moveToFirst(), true);
+        expect(await cursor.moveToLast(), true);
+        expect(await cursor.moveToNext(), false);
+        expect(await cursor.moveToPrevious(), true);
+
+        Future<void> testCursorObserver(String notificationUri) async {
+          final completer = Completer();
+          final observer = TestContentObserver(
+            onChange: (bool selfChange, String? uri, int? flags) {
+              // Android seems to be always calling through `onChangeUris`
+              fail('onChange is not expected to be called');
+            },
+            onChangeUris: (bool selfChange, List<String> uris, int? flags) {
+              completer.complete();
+            },
+          );
+          try {
+            await cursor.registerContentObserver(observer);
+            await AndroidContentResolver.instance.notifyChange(
+              uri: notificationUri,
+              flags: 1,
+            );
+            await completer.future;
+          } finally {
+            await cursor.unregisterContentObserver(observer);
+            await AndroidContentResolver.instance.notifyChange(
+              uri: notificationUri,
+              flags: 1,
+            );
+          }
+        }
+
+        await testCursorObserver(providerUri);
+
+        expect(await cursor.getNotificationUri(), providerUri);
+        expect(await cursor.getNotificationUris(), [providerUri]);
+
+        expect(
+          () => cursor.setNotificationUri('uri'),
+          throwsA(isA<PlatformException>().having(
+            (e) => e.details,
+            'details',
+            contains(
+                'expected to find a valid ContentProvider for this authority'),
+          )),
+        );
+
+        const newNotificationUri = providerUri + '/uri';
+        await cursor.setNotificationUri(newNotificationUri);
+        expect(await cursor.getNotificationUri(), newNotificationUri);
+        expect(await cursor.getNotificationUris(), [newNotificationUri]);
+
+        await testCursorObserver(providerUri);
+
+        expect(await cursor.getExtras(), Stubs.bundle);
+
+        await cursor.setExtras(Stubs.sql_extras);
+        expect(await cursor.getExtras(), Stubs.sql_extras);
+
+        expect(await cursor.respond(const {}), const {});
+
         final expectedColumnCount = Stubs.query_columnNames.length;
-        while (await cursor!.moveToNext()) {
+        while (await cursor.moveToNext()) {
           final batch = cursor.batchedGet();
           batch
             ..getCount()
@@ -766,8 +830,8 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
     expect(sortOrder, Stubs.string);
     final cursorData = MatrixCursorData(
       columnNames: Stubs.query_columnNames,
-      notificationUris: null,
-    );
+      notificationUris: [providerUri],
+    )..extras = Stubs.bundle;
     cursorData.addRow(Stubs.query_rowData);
     return cursorData;
   }
@@ -804,8 +868,8 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
       await waitForSignal(cancellationSignal!);
       final cursorData = MatrixCursorData(
         columnNames: Stubs.query_columnNames,
-        notificationUris: null,
-      );
+        notificationUris: [providerUri],
+      )..extras = Stubs.bundle;
       cursorData.addRow(Stubs.query_rowData);
       return cursorData;
     } else {

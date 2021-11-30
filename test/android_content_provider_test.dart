@@ -8,17 +8,21 @@ void main() {
 }
 
 
-// TODO unit tests. integration tests have almost 100% coverage
+// TODO unit tests. integration tests have almost 100% coverage.
+//
+// NOTE: unit tests currently mostly do not do mocking of platform channels.
+// I considered this as an unnecessary extra effort at the time, since I had written the
+// integration tests
 //
 // * (done) CallingIdentity
 // * (done) ContentValues
 // * (do we need to test it???) AndroidContentProviderMessageCodec
-// * NativeCursor
-// * NativeCursorGetBatch
-// * CursorData
-// * MatrixCursorData
-// * MatrixCursorDataRowBuilder
-// * CursorRangeError
+// * (done) NativeCursor
+// * (done) NativeCursorGetBatch
+// * (done) CursorData
+// * (done) MatrixCursorData
+// * (done) MatrixCursorDataRowBuilder
+// * (done) CursorRangeError
 // * Interoperable
 // * (done) Closeable and autoCloseScope
 // * CancellationSignal

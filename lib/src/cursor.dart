@@ -1,6 +1,5 @@
 part of android_content_provider;
 
-
 /// The cursor that calls into platform Cursor
 /// https://developer.android.com/reference/android/database/Cursor
 ///
@@ -65,6 +64,8 @@ class NativeCursor extends Interoperable implements Closeable {
 
   bool _closed = false;
 
+  /// Closes the cursor, releasing all of its resources and making it completely invalid
+  /// https://developer.android.com/reference/android/database/Cursor#close()
   @override
   Future<void> close() async {
     if (!_closed) {
@@ -73,6 +74,7 @@ class NativeCursor extends Interoperable implements Closeable {
     }
   }
 
+  /// https://developer.android.com/reference/android/database/Cursor#move(int)
   Future<bool> move(int offset) async {
     assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('move', {
@@ -81,6 +83,7 @@ class NativeCursor extends Interoperable implements Closeable {
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#movetoposition
   Future<bool> moveToPosition(int position) async {
     assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToPosition', {
@@ -89,30 +92,35 @@ class NativeCursor extends Interoperable implements Closeable {
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#movetofirst
   Future<bool> moveToFirst() async {
     assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToFirst');
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#movetolast
   Future<bool> moveToLast() async {
     assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToLast');
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#movetonext
   Future<bool> moveToNext() async {
     assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToNext');
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#movetoprevious
   Future<bool> moveToPrevious() async {
     assert(!_closed);
     final result = await _methodChannel.invokeMethod<bool>('moveToPrevious');
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#registercontentobserver
   Future<void> registerContentObserver(ContentObserver observer) {
     assert(!_closed);
     return _methodChannel.invokeMethod<bool>('registerContentObserver', {
@@ -120,6 +128,7 @@ class NativeCursor extends Interoperable implements Closeable {
     });
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#unregistercontentobserver
   Future<void> unregisterContentObserver(ContentObserver observer) {
     assert(!_closed);
     return _methodChannel.invokeMethod<bool>('unregisterContentObserver', {
@@ -140,6 +149,7 @@ class NativeCursor extends Interoperable implements Closeable {
   // CursorData is used, see the NativeCursor doc comments as to why.
   //
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#setnotificationuri
   Future<void> setNotificationUri(String uri) {
     assert(!_closed);
     return _methodChannel.invokeMethod<bool>('setNotificationUri', {
@@ -147,6 +157,7 @@ class NativeCursor extends Interoperable implements Closeable {
     });
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#setnotificationuris
   @RequiresApiOrNoop(29)
   Future<void> setNotificationUris(List<String> uris) {
     assert(!_closed);
@@ -155,18 +166,21 @@ class NativeCursor extends Interoperable implements Closeable {
     });
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getnotificationuri
   @RequiresApiOrNoop(19)
   Future<String?> getNotificationUri() {
     assert(!_closed);
     return _methodChannel.invokeMethod<String>('getNotificationUri');
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getnotificationuris
   @RequiresApiOrNoop(29)
   Future<List<String>?> getNotificationUris() {
     assert(!_closed);
     return _methodChannel.invokeListMethod<String>('getNotificationUris');
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#setextras
   @RequiresApiOrNoop(23)
   Future<void> setExtras(BundleMap extras) {
     assert(!_closed);
@@ -175,6 +189,7 @@ class NativeCursor extends Interoperable implements Closeable {
     });
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getextras
   Future<BundleMap> getExtras() async {
     assert(!_closed);
     final result =
@@ -182,6 +197,7 @@ class NativeCursor extends Interoperable implements Closeable {
     return result!;
   }
 
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#respond
   Future<BundleMap> respond(BundleMap extras) async {
     assert(!_closed);
     final result = await _methodChannel
@@ -199,21 +215,20 @@ class NativeCursor extends Interoperable implements Closeable {
 
   /// Creates a batch operation of getting data from cursor.
   NativeCursorGetBatch batchedGet() {
+    assert(!_closed);
     return NativeCursorGetBatch._(this);
   }
 }
 
-/// Represents a batched get operation from native cursor.
-///
-/// This class uses a builder pattern so methods can be called one after another.
-///
-/// To commit the batch and get the data, call [commit].
+/// Represents a batched get operation returned from [NativeCursor.batchedGet].
 ///
 /// Cursor get operations are can often be represented as batches, such as
 /// reading all values from each row. This representation allows
 /// to reduce Flutter channel bottle-necking.
 ///
-/// Used in [NativeCursor].
+/// This class uses a builder pattern so methods can be called one after another.
+///
+/// To commit the batch and get the data, call [commit].
 class NativeCursorGetBatch {
   NativeCursorGetBatch._(this._cursor);
   final NativeCursor _cursor;
@@ -227,11 +242,13 @@ class NativeCursorGetBatch {
   final List<int> _getTypeIndexes = [];
 
   void _add(String method, [Object? argument]) {
+    assert(!_cursor._closed);
     _operations.add([method, argument]);
   }
 
-  /// Commits a batch
+  /// Commits this batch.
   Future<List<Object>> commit() async {
+    assert(!_cursor._closed);
     final result = await _cursor._methodChannel
         .invokeListMethod<Object>('commitGetBatch', {
       'operations': _operations,
@@ -246,60 +263,71 @@ class NativeCursorGetBatch {
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getcount
   NativeCursorGetBatch getCount() {
+    assert(!_cursor._closed);
     _add('getCount');
     return this;
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getposition
   NativeCursorGetBatch getPosition() {
     _add('getPosition');
     return this;
   }
 
   /// Will return [bool].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#isfirst
   NativeCursorGetBatch isFirst() {
     _add('isFirst');
     return this;
   }
 
   /// Will return [bool].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#islast
   NativeCursorGetBatch isLast() {
     _add('isLast');
     return this;
   }
 
   /// Will return [bool].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#isbeforefirst
   NativeCursorGetBatch isBeforeFirst() {
     _add('isBeforeFirst');
     return this;
   }
 
   /// Will return [bool].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#isafterlast
   NativeCursorGetBatch isAfterLast() {
     _add('isAfterLast');
     return this;
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getcolumnindex
   NativeCursorGetBatch getColumnIndex(String columnName) {
     _add('getColumnIndex', columnName);
     return this;
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getcolumnindexorthrow
   NativeCursorGetBatch getColumnIndexOrThrow(String columnName) {
     _add('getColumnIndexOrThrow', columnName);
     return this;
   }
 
   /// Will return [String].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getcolumnname
   NativeCursorGetBatch getColumnName(int columnIndex) {
     _add('getColumnName', columnIndex);
     return this;
   }
 
   /// Will return `List<String>`.
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getcolumnnames
   NativeCursorGetBatch getColumnNames() {
     _stringListIndexes.add(_operations.length);
     _add('getColumnNames');
@@ -307,54 +335,63 @@ class NativeCursorGetBatch {
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getcount
   NativeCursorGetBatch getColumnCount() {
     _add('getColumnCount');
     return this;
   }
 
   /// Will return [Uint8List].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getblob
   NativeCursorGetBatch getBytes(int columnIndex) {
     _add('getBytes', columnIndex);
     return this;
   }
 
   /// Will return [String].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getstring
   NativeCursorGetBatch getString(int columnIndex) {
     _add('getString', columnIndex);
     return this;
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getshort
   NativeCursorGetBatch getShort(int columnIndex) {
     _add('getShort', columnIndex);
     return this;
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getint
   NativeCursorGetBatch getInt(int columnIndex) {
     _add('getInt', columnIndex);
     return this;
   }
 
   /// Will return [int].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getlong
   NativeCursorGetBatch getLong(int columnIndex) {
     _add('getLong', columnIndex);
     return this;
   }
 
   /// Will return [double].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getfloat
   NativeCursorGetBatch getFloat(int columnIndex) {
     _add('getFloat', columnIndex);
     return this;
   }
 
   /// Will return [double].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#getdouble
   NativeCursorGetBatch getDouble(int columnIndex) {
     _add('getDouble', columnIndex);
     return this;
   }
 
   /// Will return a [Type] that is one of the types listed in [NativeCursor.supportedFieldTypes].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#gettype
   NativeCursorGetBatch getType(int columnIndex) {
     _getTypeIndexes.add(_operations.length);
     _add('getType', columnIndex);
@@ -362,6 +399,7 @@ class NativeCursorGetBatch {
   }
 
   /// Will return [Bool].
+  /// https://developer.android.com/reference/kotlin/android/database/Cursor#isnull
   NativeCursorGetBatch isNull(int columnIndex) {
     _add('isNull', columnIndex);
     return this;
