@@ -22,8 +22,10 @@ void main() {
     test('cursor and batch methods throw when closed, except close() itself',
         () {
       autoCloseScope(() {
+        int callCount = 0;
         const MethodChannel('com.nt4f04und.android_content_provider/Cursor/id')
             .setMockMethodCallHandler((call) {
+          callCount += 1;
           expect(call.method, 'close');
         });
         final cursor = NativeCursor.fromId('id');
@@ -81,6 +83,8 @@ void main() {
         expect(() => batch.getDouble(0), throwsAssertionError);
         expect(() => batch.getType(0), throwsAssertionError);
         expect(() => batch.isNull(0), throwsAssertionError);
+
+        expect(callCount, 1);
       });
     });
   });

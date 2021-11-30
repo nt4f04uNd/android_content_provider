@@ -201,7 +201,7 @@ Future<void> main() async {
 
     test("ContentObserver and notifyChange work", () async {
       const flags = 1 | 2 | 4 | 8 | 16;
-      int calledCounter = 0;
+      int callCount = 0;
       bool notifyForDescendantsTest = false;
       final observer = TestContentObserver(
         onChange: (bool selfChange, String? uri, int? flags) {
@@ -209,8 +209,8 @@ Future<void> main() async {
           fail('onChange is not expected to be called');
         },
         onChangeUris: (bool selfChange, List<String> uris, int? flags) {
-          calledCounter += 1;
-          if (calledCounter == 1) {
+          callCount += 1;
+          if (callCount == 1) {
             // Not self change
             expect(selfChange, false);
             expect(uris, [
@@ -219,12 +219,12 @@ Future<void> main() async {
                   : providerUri
             ]);
             expect(flags, flags);
-          } else if (calledCounter == 2) {
+          } else if (callCount == 2) {
             // Self change
             expect(selfChange, true);
             expect(uris, [providerUri]);
             expect(flags, flags);
-          } else if (calledCounter == 3) {
+          } else if (callCount == 3) {
             // List of URIs
             expect(selfChange, false);
             expect(uris, [providerUri, providerUri, providerUri]);
@@ -265,8 +265,8 @@ Future<void> main() async {
         uri: providerUri,
       );
 
-      expect(calledCounter, 3);
-      calledCounter = 0;
+      expect(callCount, 3);
+      callCount = 0;
 
       // notifyForDescendants=true test
       notifyForDescendantsTest = true;
@@ -284,7 +284,7 @@ Future<void> main() async {
         await AndroidContentResolver.instance
             .unregisterContentObserver(observer);
       }
-      expect(calledCounter, 1);
+      expect(callCount, 1);
     });
   });
 

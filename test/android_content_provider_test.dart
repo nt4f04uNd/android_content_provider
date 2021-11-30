@@ -25,7 +25,8 @@ void main() {
 // * (done) CursorRangeError
 // * Interoperable
 // * (done) Closeable and autoCloseScope
-// * CancellationSignal
+// * (done) CancellationSignal
+// * (done) ReceivedCancellationSignal
 // * AndroidContentProvider
 // * (done) MimeTypeInfo
 // * ContentObserver
