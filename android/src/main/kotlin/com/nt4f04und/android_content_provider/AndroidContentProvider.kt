@@ -51,7 +51,8 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
          * You should use this engine group in your own components, because it drastically
          * [improves performance and reduces memory footprint](https://flutter.dev/docs/development/add-to-app/multiple-flutters).
          *
-         * See the (TODO link to readme) for instructions how to do that.
+         * See the [link](https://github.com/nt4f04uNd/android_content_provider#configuring-androidcontentprovider)
+         * for instructions how to do that.
          */
         fun getFlutterEngineGroup(context: Context): FlutterEngineGroup {
             if (engineGroup == null) {

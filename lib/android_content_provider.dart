@@ -2042,13 +2042,6 @@ class AndroidContentResolver {
   //
   //
 
-  // static addStatusChangeListener(mask: Int, callback: SyncStatusObserver!): Any!
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#addstatuschangelistener
-  //
-  // TODO: implement
-  //
-  //
-
   // applyBatch(authority: String, operations: ArrayList<ContentProviderOperation!>): Array<ContentProviderResult!>
   // https://developer.android.com/reference/kotlin/android/content/ContentResolver#applybatch
   //
@@ -2399,13 +2392,6 @@ class AndroidContentResolver {
       'observer': observer.id,
     });
   }
-
-  // static removeStatusChangeListener(handle: Any!): Unit
-  // https://developer.android.com/reference/kotlin/android/content/ContentResolver#removestatuschangelistener
-  //
-  // TODO: implement
-  //
-  //
 
   /// uncanonicalize(url: Uri): Uri?
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#uncanonicalize

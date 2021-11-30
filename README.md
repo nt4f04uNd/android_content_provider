@@ -2,10 +2,6 @@
 
 android_content_provider exposes ContentProvider and related ContentResolver APIs on Android
 
-## Example
-
-
-
 ## Configuring `AndroidContentProvider`
 
 You may ignore these steps if you only want to use `AndroidContentResolver`.

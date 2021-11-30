@@ -1,3 +1,3 @@
 ## 0.0.1
 
-* TODO: Describe initial release.
+* Support ContentProvider and related ContentResolver APIs on Android
