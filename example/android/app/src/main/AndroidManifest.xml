@@ -1,5 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.nt4f04und.android_content_provider_example">
+   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
    <application
         android:label="android_content_provider_example"
         android:name="${applicationName}"
@@ -31,9 +33,5 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-       <provider
-           android:name=".ExampleAndroidContentProvider"
-           android:authorities="com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider"
-           android:exported="true" />
     </application>
 </manifest>

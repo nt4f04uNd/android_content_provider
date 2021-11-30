@@ -374,7 +374,7 @@ Future<void> main() async {
     });
 
     test("query and queryWithExtras", () async {
-      Future<void> doTest(NativeCursor? cursor) async {
+      Future<void> testCursor(NativeCursor? cursor) async {
         expect(cursor, isNotNull);
         expect(await cursor!.move(0), false);
         expect(await cursor.moveToPosition(0), true);
@@ -504,7 +504,7 @@ Future<void> main() async {
       }
 
       await autoCloseScope(() async {
-        await doTest(await AndroidContentResolver.instance.query(
+        await testCursor(await AndroidContentResolver.instance.query(
           uri: providerUri,
           projection: Stubs.stringList,
           selection: Stubs.string,
@@ -512,7 +512,7 @@ Future<void> main() async {
           sortOrder: Stubs.string,
         ));
 
-        await doTest(await AndroidContentResolver.instance.queryWithSignal(
+        await testCursor(await AndroidContentResolver.instance.queryWithSignal(
           uri: providerUri,
           projection: Stubs.stringList,
           selection: Stubs.string,
@@ -521,7 +521,7 @@ Future<void> main() async {
           cancellationSignal: CancellationSignal()..cancel(),
         ));
 
-        await doTest(await AndroidContentResolver.instance.queryWithExtras(
+        await testCursor(await AndroidContentResolver.instance.queryWithExtras(
           uri: queryWithExtrasTest,
           projection: Stubs.stringList,
           queryArgs: Stubs.sql_extras,

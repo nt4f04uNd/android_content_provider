@@ -1,53 +1,59 @@
-import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:android_content_provider/android_content_provider.dart';
-
-const c = AndroidContentResolver();
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // final  test =  await c.bulkInsert(uri, ContentValues());
-  // print(test)
-  final cursor = await c.query(
-    uri:
-        'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider',
-    projection: null,
-    selection: null,
-    selectionArgs: null,
-    sortOrder: null,
-  );
-  if (cursor != null) {
-    try {
-      final columnNames = (await cursor.batchedGet().getColumnNames().commit())
-          .first as List<String>;
-      print(columnNames);
-      while (await cursor.moveToNext()) {
-        print(await cursor
-            .batchedGet()
-            .getInt(0)
-            .getString(1)
-            .getBytes(2)
-            .commit());
-      }
-    } finally {
-      await cursor.close();
-    }
-  } else {
-    print('cursor is null');
-  }
-  print('done');
+  await Permission.storage.request();
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+  // final List<>
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
+  late final controller = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 700))
+    ..repeat();
+
+  @override
+  void initState() {
+    super.initState();
+    // Timer.periodic(const Duration(seconds: 3), (timer) {
+    //   fetch();
+    // });
+  }
+
+  void fetch() async {
+    await autoCloseScope(() async {
+      final cursor = await AndroidContentResolver.instance.query(
+        // uri: 'content://media/external/images/media',
+        uri: 'content://media/external/audio/media',
+        projection: ['_id'],
+        selection: null,
+        selectionArgs: null,
+        sortOrder: null,
+      );
+      final ids = [];
+      final s = Stopwatch();
+      s.start();
+      while (await cursor!.moveToNext()) {
+        ids.add(await cursor.batchedGet().getInt(0).commit());
+      }
+      s.stop();
+      print(s.elapsedMilliseconds);
+      print(ids);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -55,72 +61,21 @@ class _MyAppState extends State<MyApp> {
         appBar: AppBar(
           title: const Text('Plugin example app'),
         ),
-        body: Container(color: Colors.red),
+        body: Center(
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, child) => RotationTransition(
+              turns: controller,
+              child: child,
+            ),
+            child: Container(
+              color: Colors.red,
+              width: 100,
+              height: 100,
+            ),
+          ),
+        ),
       ),
     );
-  }
-}
-
-@pragma('vm:entry-point')
-void exampleContentProviderEntrypoint() async {
-  ExampleAndroidContentProvider();
-}
-
-class ExampleAndroidContentProvider extends AndroidContentProvider {
-  ExampleAndroidContentProvider()
-      : super(
-            'com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider');
-
-  @override
-  Future<int> delete(
-    String uri,
-    String? selection,
-    List<String>? selectionArgs,
-  ) async {
-    return 0;
-  }
-
-  @override
-  Future<String?> getType(String uri) async {
-    return null;
-  }
-
-  @override
-  Future<String?> insert(String uri, ContentValues? values) async {
-    return null;
-  }
-
-  @override
-  Future<CursorData?> query(
-    String uri,
-    List<String>? projection,
-    String? selection,
-    List<String>? selectionArgs,
-    String? sortOrder,
-  ) async {
-    final cursorData = MatrixCursorData(
-      columnNames: ['column_1', 'column_2', 'column_3'],
-      notificationUris: [
-        'content://com.nt4f04und.android_content_provider_example.ExampleAndroidContentProvider'
-      ],
-    );
-    for (int i = 0; i < 100; i++) {
-      cursorData.addRow([
-        i,
-        'string_$i',
-        Uint8List.fromList([i, i + 1, i + 2]),
-      ]);
-    }
-    return cursorData;
-  }
-
-  @override
-  Future<int> update(
-    String uri,
-    ContentValues? values,
-    String? selection,
-    List<String>? selectionArgs,
-  ) async {
-    return 0;
   }
 }
