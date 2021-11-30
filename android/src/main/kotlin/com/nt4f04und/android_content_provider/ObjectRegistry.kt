@@ -10,13 +10,13 @@ import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 
 /**
- * Creates a class that can have a dart counterpart.
+ * Creates a class that can have a Dart counterpart.
  *
  * May have a [channel], but this is not necessary.
  * To release the object resources call [destroy].
  *
  * Use this class when you have a short living instance,
- * which can be released at the end of the method call from dart.
+ * which can be released at the end of the method call from Dart.
  * Example - [InteroperableCancellationSignal].
  *
  * Otherwise use [Registrable].
@@ -150,7 +150,7 @@ abstract class Interoperable<T : Interoperable.InteroperableChannel>(
  * The companion object of a subclass should implement the [RegistrableCompanion] interface.
  *
  * Use this class when you have to keep object instances between method calls,
- * from dart.
+ * from Dart.
  * Example - [RegistrableContentObserver].
  *
  * Otherwise use [Interoperable].

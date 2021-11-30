@@ -29,7 +29,7 @@ class Stubs {
     ..putBool('7', false)
     ..putNull('8');
   static final overflowingContentValues = ContentValues()
-    // will only overflow in dart
+    // will only overflow in Dart
     ..putByte('0', 127 + 1)
     ..putShort('1', 32767 + 1)
     ..putInt('2', 2147483647 + 1)

@@ -83,7 +83,7 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   // Uri is only sent from native and converted to String.
   static const int _kUri = 134;
   // Bundle is only sent from native.
-  // From dart it's easier to just send the Map<String, Object?>
+  // From Dart it's easier to just send the Map<String, Object?>
   static const int _kBundle = 133;
   static const int _kContentValues = 132;
 

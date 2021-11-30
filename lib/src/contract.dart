@@ -76,16 +76,15 @@ abstract class Interoperable {
   /// Creates an object with UUID v4 [id].
   ///
   /// Used to create an object and send it to the platform to create a native instance.
-  Interoperable() : id = _uuid.v4();
+  Interoperable() : this.fromId(_uuid.v4());
 
   /// Creates an object from an existing ID.
   ///
   /// The of opposite [Interoperable.new].
-  /// Used when the platform creats an object and needs a dart counterpart.
+  /// Used when the platform creats an object and needs a Dart counterpart.
   ///
   /// Marked as [visibleForTesting] because it's generally not what an API user should use.
-  /// However, it could be useful for custom implementations of [NativeCursor]
-  /// or [AndroidContentProvider] (i.e. those using `implements`).
+  /// However, it can be used to create custom interoperables.
   @visibleForTesting
   const Interoperable.fromId(this.id);
 

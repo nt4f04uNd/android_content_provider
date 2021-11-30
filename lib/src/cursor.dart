@@ -211,7 +211,7 @@ class NativeCursor extends Interoperable implements Closeable {
   //  * deactivate - deprecated
   //  * requery - deprecated
   //  * getWantsAllOnMoveCalls - intended to be overriden, which doesn't fit this class.
-  //    Also, it doesn't seem to be useful in dart
+  //    Also, it doesn't seem to be useful in Dart
 
   /// Creates a batch operation of getting data from cursor.
   NativeCursorGetBatch batchedGet() {

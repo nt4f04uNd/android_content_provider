@@ -5,18 +5,18 @@ part of android_content_provider;
 ///
 /// The native class is `AndroidContentProvider`.
 ///
-/// Generally, you should use `extends` and NOT `implements` on this class, because it will remove
-/// a binding to the platofrm with a method channel.
+/// Generally, this class should be used with `extends` and NOT `implements`,
+/// because it will remove a binding to the platofrm with a method channel.
 ///
 /// However, `implements` could be used for:
 ///  * using this class just as interface, or
 ///  * for creating a custom native implementation by extending from `AndroidContentProvider`
 ///
-/// The majority of the methods are called by the native platform to dart. They can be overridden
+/// The majority of the methods are called by the native platform to Dart. They can be overridden
 /// to implement some behavior.
 ///
 /// But also, vice versa, some methods that are marked with [native] annotation are meant
-/// to be called from dart to native. These methods will never be called from native to dart.
+/// to be called from Dart to native. These methods will never be called from native to Dart.
 abstract class AndroidContentProvider {
   /// Creates a communication interface with native Android ContentProvider.
   AndroidContentProvider(this.authority)
@@ -472,7 +472,7 @@ abstract class AndroidContentProvider {
   // openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?, signal: CancellationSignal?): AssetFileDescriptor?
   // https://developer.android.com/reference/kotlin/android/content/ContentProvider#opentypedassetfile_1
   //
-  // TODO: consider implementing writeDataToPipe to support writing as stream from dart
+  // TODO: consider implementing writeDataToPipe to support writing as stream from Dart
   // For example see https://android.googlesource.com/platform/development/+/4779ab6f9aa4d6b691f051e069ffac31475f850a/samples/NotePad/src/com/example/android/notepad/NotePadProvider.java
   //
 
