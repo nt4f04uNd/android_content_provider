@@ -14,6 +14,14 @@ const _channelPrefix = 'com.nt4f04und.android_content_provider';
 const _pluginMethodCodec =
     StandardMethodCodec(AndroidContentProviderMessageCodec());
 
+void _reportFlutterError(Object error, StackTrace stack) {
+  FlutterError.reportError(FlutterErrorDetails(
+    exception: error,
+    stack: stack,
+    library: 'android_content_provider',
+  ));
+}
+
 List<T>? _asList<T>(Object? value) {
   return (value as List?)?.cast<T>();
 }
@@ -463,8 +471,75 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
   }
 }
 
+bool _inCloseScope = false;
+List<Closeable> _autoCloseList = [];
+
+/// A scope that automatically closes [Closeable] objects that registered themselves in it.
+///
+/// Do not try to [Closeable] instances and get the data you need within the scope callback.
+FutureOr<T> autoCloseScope<T>(FutureOr<T> Function() callback) async {
+  assert(!_inCloseScope);
+  assert(_autoCloseList.isEmpty);
+  _inCloseScope = true;
+  try {
+    return await callback();
+  } finally {
+    try {
+      for (final closeable in _autoCloseList) {
+        try {
+          closeable.close();
+        } catch (error, stack) {
+          _reportFlutterError(error, stack);
+        }
+      }
+    } finally {
+      _autoCloseList.clear();
+      _inCloseScope = false;
+    }
+  }
+}
+
+/// Represents an object that can be closed.
+///
+/// Known subclasses:
+///  * [NativeCursor]
+abstract class Closeable {
+  /// Creates [Closeable].
+  const Closeable();
+
+  /// Creates [Closeable] and calls [autoClose].
+  Closeable.auto({String? errorMessage}) {
+    autoClose(this, errorMessage: errorMessage);
+  }
+
+  /// Registers [Closeable] within [autoCloseScope], must be called inside it.
+  static void autoClose(Closeable closeable, {String? errorMessage}) {
+    assert(() {
+      if (!_inCloseScope) {
+        try {
+          closeable.close();
+        } finally {
+          throw StateError(errorMessage ??
+              "${closeable.runtimeType} must be created inside `autoCloseScope`");
+        }
+      }
+      return true;
+    }());
+    if (_inCloseScope) {
+      _autoCloseList.add(closeable);
+    }
+  }
+
+  /// Closes this object.
+  void close();
+}
+
 /// The cursor that calls into platform Cursor
 /// https://developer.android.com/reference/android/database/Cursor
+///
+/// Must be created within [autoCloseScope] and will be automatically closed
+/// once its callback ends. Therefore, do not try to store cursor instances and get the
+/// data you need within the scope callback.
 ///
 /// The operations are packed into [NativeCursorGetBatch] to achieve the best performance
 /// by reducing Flutter channel bottle-necking. Cursor operations can often be
@@ -479,7 +554,7 @@ class AndroidContentProviderMessageCodec extends StandardMessageCodec {
 ///
 /// See also:
 ///  * [CursorData], which is a class, returned from [AndroidContentProvider.query].
-class NativeCursor extends Interoperable {
+class NativeCursor extends Interoperable implements Closeable {
   /// Creates native cursor from an existing ID.
   @visibleForTesting
   NativeCursor.fromId(String id)
@@ -487,7 +562,14 @@ class NativeCursor extends Interoperable {
           '$_channelPrefix/Cursor/$id',
           _pluginMethodCodec,
         ),
-        super.fromId(id);
+        super.fromId(id) {
+    Closeable.autoClose(
+      this,
+      errorMessage:
+          "AndroidContentResolver.query methods must be called inside `autoCloseScope`. "
+          "The $NativeCursor was instantiated outside the `autoCloseScope`.",
+    );
+  }
 
   /// Supported types in Android SQLite.
   ///
@@ -516,6 +598,7 @@ class NativeCursor extends Interoperable {
 
   bool _closed = false;
 
+  @override
   Future<void> close() async {
     if (!_closed) {
       _closed = true;
@@ -1798,11 +1881,8 @@ abstract class ContentObserver extends Interoperable {
             uri,
             args['flags'] as int?,
           );
-        } catch (error, stackTrace) {
-          FlutterError.reportError(FlutterErrorDetails(
-            exception: error,
-            stack: stackTrace,
-          ));
+        } catch (error, stack) {
+          _reportFlutterError(error, stack);
           return null;
         }
       case 'onChangeUris':
@@ -1813,11 +1893,8 @@ abstract class ContentObserver extends Interoperable {
             uris,
             args['flags'] as int?,
           );
-        } catch (error, stackTrace) {
-          FlutterError.reportError(FlutterErrorDetails(
-            exception: error,
-            stack: stackTrace,
-          ));
+        } catch (error, stack) {
+          _reportFlutterError(error, stack);
           return null;
         }
       default:

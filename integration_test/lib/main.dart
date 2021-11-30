@@ -375,97 +375,95 @@ Future<void> main() async {
     test("query and queryWithExtras", () async {
       Future<void> doTest(NativeCursor? cursor) async {
         expect(cursor, isNotNull);
-        try {
-          final expectedColumnCount = Stubs.query_columnNames.length;
-          while (await cursor!.moveToNext()) {
-            final batch = cursor.batchedGet();
-            batch
-              ..getCount()
-              ..getPosition()
-              ..isFirst()
-              ..isLast()
-              ..isBeforeFirst()
-              ..isAfterLast();
-            for (final columnName in Stubs.query_columnNames) {
-              batch.getColumnIndex(columnName);
-            }
-            batch.getColumnIndex('missing-column');
-            // skip getColumnIndexOrThrow - it has a separate test
-            for (int i = 0; i < expectedColumnCount; i++) {
-              batch.getColumnName(i);
-            }
-            batch
-              ..getColumnNames()
-              ..getColumnCount();
-            batch
-              ..getBytes(0)
-              ..getString(1)
-              ..getShort(2)
-              ..getInt(3)
-              ..getLong(4)
-              ..getFloat(5)
-              ..getDouble(6)
-              ..isNull(7);
-            for (int i = 0; i < expectedColumnCount; i++) {
-              batch.getType(i);
-            }
-            final results = await batch.commit();
-            expect(results, <Object?>[
-              1, // getCount
-              0, // getPosition
-              true, // isFirst
-              true, // isLast
-              false, // isBeforeFirst
-              false, // isAfterLast
-              // getColumnIndex
-              ...List.generate(expectedColumnCount, (index) => index),
-              -1,
-              ...Stubs.query_columnNames, // getColumnName
-              Stubs.query_columnNames, // getColumnNames
-              expectedColumnCount, // getColumnCount
-              // get___ methods
-              ...[...List.from(Stubs.query_rowData)..removeLast(), true],
-              // getType
-              ...<Type>[
-                Uint8List,
-                String,
-                int,
-                int,
-                int,
-                double,
-                double,
-                Null,
-              ]
-            ]);
+        final expectedColumnCount = Stubs.query_columnNames.length;
+        while (await cursor!.moveToNext()) {
+          final batch = cursor.batchedGet();
+          batch
+            ..getCount()
+            ..getPosition()
+            ..isFirst()
+            ..isLast()
+            ..isBeforeFirst()
+            ..isAfterLast();
+          for (final columnName in Stubs.query_columnNames) {
+            batch.getColumnIndex(columnName);
           }
-        } finally {
-          await cursor!.close();
+          batch.getColumnIndex('missing-column');
+          // skip getColumnIndexOrThrow - it has a separate test
+          for (int i = 0; i < expectedColumnCount; i++) {
+            batch.getColumnName(i);
+          }
+          batch
+            ..getColumnNames()
+            ..getColumnCount();
+          batch
+            ..getBytes(0)
+            ..getString(1)
+            ..getShort(2)
+            ..getInt(3)
+            ..getLong(4)
+            ..getFloat(5)
+            ..getDouble(6)
+            ..isNull(7);
+          for (int i = 0; i < expectedColumnCount; i++) {
+            batch.getType(i);
+          }
+          final results = await batch.commit();
+          expect(results, <Object?>[
+            1, // getCount
+            0, // getPosition
+            true, // isFirst
+            true, // isLast
+            false, // isBeforeFirst
+            false, // isAfterLast
+            // getColumnIndex
+            ...List.generate(expectedColumnCount, (index) => index),
+            -1,
+            ...Stubs.query_columnNames, // getColumnName
+            Stubs.query_columnNames, // getColumnNames
+            expectedColumnCount, // getColumnCount
+            // get___ methods
+            ...[...List.from(Stubs.query_rowData)..removeLast(), true],
+            // getType
+            ...<Type>[
+              Uint8List,
+              String,
+              int,
+              int,
+              int,
+              double,
+              double,
+              Null,
+            ]
+          ]);
         }
       }
 
-      await doTest(await AndroidContentResolver.instance.query(
-        uri: providerUri,
-        projection: Stubs.stringList,
-        selection: Stubs.string,
-        selectionArgs: Stubs.stringList,
-        sortOrder: Stubs.string,
-      ));
+      await autoCloseScope(() async {
+        await doTest(await AndroidContentResolver.instance.query(
+          uri: providerUri,
+          projection: Stubs.stringList,
+          selection: Stubs.string,
+          selectionArgs: Stubs.stringList,
+          sortOrder: Stubs.string,
+        ));
 
-      await doTest(await AndroidContentResolver.instance.queryWithSignal(
-        uri: providerUri,
-        projection: Stubs.stringList,
-        selection: Stubs.string,
-        selectionArgs: Stubs.stringList,
-        sortOrder: Stubs.string,
-        cancellationSignal: CancellationSignal()..cancel(),
-      ));
+        await doTest(await AndroidContentResolver.instance.queryWithSignal(
+          uri: providerUri,
+          projection: Stubs.stringList,
+          selection: Stubs.string,
+          selectionArgs: Stubs.stringList,
+          sortOrder: Stubs.string,
+          cancellationSignal: CancellationSignal()..cancel(),
+        ));
 
-      await doTest(await AndroidContentResolver.instance.queryWithExtras(
-        uri: queryWithExtrasTest,
-        projection: Stubs.stringList,
-        queryArgs: Stubs.sql_extras,
-        cancellationSignal: CancellationSignal()..cancel(),
-      ));
+        await doTest(await AndroidContentResolver.instance.queryWithExtras(
+          uri: queryWithExtrasTest,
+          projection: Stubs.stringList,
+          queryArgs: Stubs.sql_extras,
+          cancellationSignal: CancellationSignal()..cancel(),
+        ));
+      });
     });
 
     test("refresh", () async {
