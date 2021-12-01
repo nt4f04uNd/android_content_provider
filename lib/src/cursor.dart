@@ -231,6 +231,7 @@ class NativeCursor extends Interoperable implements Closeable {
 /// To commit the batch and get the data, call [commit].
 class NativeCursorGetBatch {
   NativeCursorGetBatch._(this._cursor);
+
   final NativeCursor _cursor;
 
   final List<List<Object?>> _operations = [];
@@ -246,20 +247,59 @@ class NativeCursorGetBatch {
     _operations.add([method, argument]);
   }
 
+  void _correctResult(List<Object> result) {
+    for (final index in _stringListIndexes) {
+      result[index] = _asList<String>(result[index])!;
+    }
+    for (final index in _getTypeIndexes) {
+      result[index] = NativeCursor.supportedFieldTypes[result[index] as int];
+    }
+  }
+
   /// Commits this batch.
+  ///
+  /// Only one [commit] or [commitRange] operation can run at once, other calls
+  /// won't start before the ongoing commit ends.
   Future<List<Object>> commit() async {
     assert(!_cursor._closed);
     final result = await _cursor._methodChannel
         .invokeListMethod<Object>('commitGetBatch', {
       'operations': _operations,
     });
-    for (final index in _stringListIndexes) {
-      result![index] = _asList<String>(result[index])!;
+    _correctResult(result!);
+    return result;
+  }
+
+  /// Commits this batch and applies it for a range of cursor rows.
+  ///
+  /// Valid range is from 0 to the cursor [getCount].
+  ///
+  /// The [end] is not strict - if [getCount] is than the [end], the returned list
+  /// will just be shorter by their difference.
+  ///
+  /// Only one [commit] or [commitRange] operation can run at once, other calls
+  /// won't start before the ongoing commit ends.
+  ///
+  /// This function does not affect the cursor position.
+  Future<List<List<Object>>> commitRange(int start, int end) async {
+    assert(!_cursor._closed);
+    assert(start >= 0);
+    assert(start <= end);
+    if (start == end) {
+      return [];
     }
-    for (final index in _getTypeIndexes) {
-      result![index] = NativeCursor.supportedFieldTypes[result[index] as int];
+    final result = await _cursor._methodChannel
+        .invokeListMethod<List<Object?>>('commitRangeGetBatch', {
+      'operations': _operations,
+      'start': start,
+      'end': end,
+    });
+    for (int i = 0; i < result!.length; i++) {
+      final row = result[i].cast<Object>();
+      result[i] = row;
+      _correctResult(row);
     }
-    return result!;
+    return result.cast<List<Object>>();
   }
 
   /// Will return [int].

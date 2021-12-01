@@ -113,47 +113,79 @@ class InteroperableCursor(
                         result.success(cursor.respond(mapToBundle(asMap(args!!["extras"]))))
                     }
                     "commitGetBatch" -> {
-                        val resultList = mutableListOf<Any>()
-                        for (operationTuple in args!!["operations"] as ArrayList<ArrayList<Any>>) {
-                            if (operationTuple.isEmpty() || operationTuple.size > 2) {
-                                throw IllegalArgumentException(
-                                        "Invalid operation format: operation had length ${operationTuple.size}, " +
-                                                "but must have 1 or 2")
-                            }
-                            val argument =
-                                    if (operationTuple.size > 1) operationTuple[1]
-                                    else null
-                            val resultValue: Any = when (val operation = operationTuple.first() as String) {
-                                "getCount" -> cursor.count
-                                "getPosition" -> cursor.position
-                                "isFirst" -> cursor.isFirst
-                                "isLast" -> cursor.isLast
-                                "isBeforeFirst" -> cursor.isBeforeFirst
-                                "isAfterLast" -> cursor.isAfterLast
-                                "getColumnIndex" -> cursor.getColumnIndex(argument as String)
-                                "getColumnIndexOrThrow" -> cursor.getColumnIndexOrThrow(argument as String)
-                                "getColumnName" -> cursor.getColumnName(getLong(argument)!!.toInt())
-                                "getColumnNames" -> cursor.columnNames
-                                "getColumnCount" -> cursor.columnCount
-                                "getBytes" -> cursor.getBlob(getLong(argument)!!.toInt())
-                                "getString" -> cursor.getString(getLong(argument)!!.toInt())
-                                "getShort" -> cursor.getShort(getLong(argument)!!.toInt())
-                                "getInt" -> cursor.getInt(getLong(argument)!!.toInt())
-                                "getLong" -> cursor.getLong(getLong(argument)!!.toInt())
-                                "getFloat" -> cursor.getFloat(getLong(argument)!!.toInt())
-                                "getDouble" -> cursor.getDouble(getLong(argument)!!.toInt())
-                                "getType" -> cursor.getType(getLong(argument)!!.toInt())
-                                "isNull" -> cursor.isNull(getLong(argument)!!.toInt())
-                                else -> throw IllegalArgumentException("Unsupported operation: $operation")
-                            }
-                            resultList.add(resultValue)
+                        synchronized(this) {
+                            val operations = args!!["operations"] as ArrayList<ArrayList<Any>>
+                            result.success(applyBatch(operations))
                         }
-                        result.success(resultList)
+                    }
+                    "commitRangeGetBatch" -> {
+                        synchronized(this) {
+                            val start = getLong(args!!["start"])!!.toInt()
+                            val end = getLong(args["end"])!!.toInt()
+                            val initialPosition = cursor.position
+                            if (initialPosition != start && !cursor.moveToPosition(start)) {
+                                // we are out of range and cannot iterate
+                                result.success(listOf<Any>())
+                            } else {
+                                try {
+                                    val operations = args["operations"] as ArrayList<ArrayList<Any>>
+                                    val results = mutableListOf<List<Any>>()
+                                    for (i in start..end) {
+                                        results.add(applyBatch(operations))
+                                        if (!cursor.moveToNext()) {
+                                            break
+                                        }
+                                    }
+                                    result.success(results)
+                                } finally {
+                                    cursor.moveToPosition(initialPosition)
+                                }
+                            }
+                        }
                     }
                 }
             } catch (e : Exception) {
                 methodCallFail(result, e)
             }
         }
+    }
+
+    private fun applyBatch(operations : ArrayList<ArrayList<Any>>) : MutableList<Any> {
+        val results = mutableListOf<Any>()
+        for (operationTuple in operations) {
+            if (operationTuple.isEmpty() || operationTuple.size > 2) {
+                throw IllegalArgumentException(
+                        "Invalid operation format: operation had length ${operationTuple.size}, " +
+                                "but must have 1 or 2")
+            }
+            val argument =
+                    if (operationTuple.size > 1) operationTuple[1]
+                    else null
+            val resultValue: Any = when (val operation = operationTuple.first() as String) {
+                "getCount" -> cursor.count
+                "getPosition" -> cursor.position
+                "isFirst" -> cursor.isFirst
+                "isLast" -> cursor.isLast
+                "isBeforeFirst" -> cursor.isBeforeFirst
+                "isAfterLast" -> cursor.isAfterLast
+                "getColumnIndex" -> cursor.getColumnIndex(argument as String)
+                "getColumnIndexOrThrow" -> cursor.getColumnIndexOrThrow(argument as String)
+                "getColumnName" -> cursor.getColumnName(getLong(argument)!!.toInt())
+                "getColumnNames" -> cursor.columnNames
+                "getColumnCount" -> cursor.columnCount
+                "getBytes" -> cursor.getBlob(getLong(argument)!!.toInt())
+                "getString" -> cursor.getString(getLong(argument)!!.toInt())
+                "getShort" -> cursor.getShort(getLong(argument)!!.toInt())
+                "getInt" -> cursor.getInt(getLong(argument)!!.toInt())
+                "getLong" -> cursor.getLong(getLong(argument)!!.toInt())
+                "getFloat" -> cursor.getFloat(getLong(argument)!!.toInt())
+                "getDouble" -> cursor.getDouble(getLong(argument)!!.toInt())
+                "getType" -> cursor.getType(getLong(argument)!!.toInt())
+                "isNull" -> cursor.isNull(getLong(argument)!!.toInt())
+                else -> throw IllegalArgumentException("Unsupported operation: $operation")
+            }
+            results.add(resultValue)
+        }
+        return results
     }
 }

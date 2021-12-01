@@ -440,40 +440,40 @@ Future<void> main() async {
         expect(await cursor.respond(const {}), const {});
 
         final expectedColumnCount = Stubs.query_columnNames.length;
-        while (await cursor.moveToNext()) {
-          final batch = cursor.batchedGet();
-          batch
-            ..getCount()
-            ..getPosition()
-            ..isFirst()
-            ..isLast()
-            ..isBeforeFirst()
-            ..isAfterLast();
-          for (final columnName in Stubs.query_columnNames) {
-            batch.getColumnIndex(columnName);
-          }
-          batch.getColumnIndex('missing-column');
-          // skip getColumnIndexOrThrow - it has a separate test
-          for (int i = 0; i < expectedColumnCount; i++) {
-            batch.getColumnName(i);
-          }
-          batch
-            ..getColumnNames()
-            ..getColumnCount();
-          batch
-            ..getBytes(0)
-            ..getString(1)
-            ..getShort(2)
-            ..getInt(3)
-            ..getLong(4)
-            ..getFloat(5)
-            ..getDouble(6)
-            ..isNull(7);
-          for (int i = 0; i < expectedColumnCount; i++) {
-            batch.getType(i);
-          }
-          final results = await batch.commit();
-          expect(results, <Object?>[
+        final batch = cursor.batchedGet();
+        batch
+          ..getCount()
+          ..getPosition()
+          ..isFirst()
+          ..isLast()
+          ..isBeforeFirst()
+          ..isAfterLast();
+        for (final columnName in Stubs.query_columnNames) {
+          batch.getColumnIndex(columnName);
+        }
+        batch.getColumnIndex('missing-column');
+        // skip getColumnIndexOrThrow - it has a separate test
+        for (int i = 0; i < expectedColumnCount; i++) {
+          batch.getColumnName(i);
+        }
+        batch
+          ..getColumnNames()
+          ..getColumnCount();
+        batch
+          ..getBytes(0)
+          ..getString(1)
+          ..getShort(2)
+          ..getInt(3)
+          ..getLong(4)
+          ..getFloat(5)
+          ..getDouble(6)
+          ..isNull(7);
+        for (int i = 0; i < expectedColumnCount; i++) {
+          batch.getType(i);
+        }
+
+        void testRow(List<Object> row) {
+          expect(row, <Object?>[
             1, // getCount
             0, // getPosition
             true, // isFirst
@@ -500,6 +500,22 @@ Future<void> main() async {
               Null,
             ]
           ]);
+        }
+
+        // verify commit
+        int rowCount = 0;
+        while (await cursor.moveToNext()) {
+          rowCount += 1;
+          final row = await batch.commit();
+          testRow(row);
+        }
+        expect(rowCount, 1);
+
+        // verify commitRange
+        final rows = await batch.commitRange(0, 1);
+        expect(rows, hasLength(1));
+        for (final row in rows) {
+          testRow(row);
         }
       }
 
