@@ -5,7 +5,7 @@ List<Closeable> _autoCloseList = [];
 
 /// A scope that automatically closes [Closeable] objects that registered themselves in it.
 ///
-/// Do not try to [Closeable] instances and get the data you need within the scope callback.
+/// Do not try to store [Closeable] instances and get the data you need within the scope callback.
 FutureOr<T> autoCloseScope<T>(FutureOr<T> Function() callback) async {
   assert(!_inCloseScope);
   assert(_autoCloseList.isEmpty);

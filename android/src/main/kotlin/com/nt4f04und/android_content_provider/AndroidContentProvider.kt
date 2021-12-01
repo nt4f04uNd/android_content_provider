@@ -13,10 +13,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import com.nt4f04und.android_content_provider.AndroidContentProvider.Companion.getFlutterEngineGroup
+import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineGroup
 import io.flutter.embedding.engine.dart.DartExecutor
-import io.flutter.embedding.engine.loader.FlutterLoader
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -42,7 +42,6 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     private lateinit var trackingMapFactory: TrackingMapFactory
 
     companion object {
-        private var flutterLoader: FlutterLoader? = null
         private var engineGroup: FlutterEngineGroup? = null
 
         /**
@@ -103,11 +102,9 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
 
     @CallSuper
     override fun onCreate(): Boolean {
-        if (flutterLoader == null) {
-            flutterLoader = FlutterLoader()
-            flutterLoader!!.startInitialization(context!!)
-        }
-        val entrypoint = DartExecutor.DartEntrypoint(flutterLoader!!.findAppBundlePath(), entrypointName)
+        val flutterLoader = FlutterInjector.instance().flutterLoader()
+        flutterLoader.startInitialization(context!!.applicationContext)
+        val entrypoint = DartExecutor.DartEntrypoint(flutterLoader.findAppBundlePath(), entrypointName)
         val engineGroup = getFlutterEngineGroup(context!!)
         engine = engineGroup.createAndRunEngine(context!!, entrypoint)
         ensureLifecycleInitialized()

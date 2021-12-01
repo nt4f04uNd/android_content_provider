@@ -375,13 +375,7 @@ Future<void> main() async {
 
     test("query and queryWithExtras", () async {
       Future<void> testCursor(NativeCursor? cursor) async {
-        expect(cursor, isNotNull);
-        expect(await cursor!.move(0), false);
-        expect(await cursor.moveToPosition(0), true);
-        expect(await cursor.moveToFirst(), true);
-        expect(await cursor.moveToLast(), true);
-        expect(await cursor.moveToNext(), false);
-        expect(await cursor.moveToPrevious(), true);
+        cursor!;
 
         Future<void> testCursorObserver(String notificationUri) async {
           final completer = Completer();
@@ -415,7 +409,7 @@ Future<void> main() async {
         expect(await cursor.getNotificationUri(), providerUri);
         expect(await cursor.getNotificationUris(), [providerUri]);
 
-        expect(
+        await expectLater(
           () => cursor.setNotificationUri('uri'),
           throwsA(isA<PlatformException>().having(
             (e) => e.details,
@@ -501,6 +495,16 @@ Future<void> main() async {
             ]
           ]);
         }
+
+        expect(await cursor.move(0), false);
+        expect(await cursor.moveToPosition(0), true);
+        expect(await cursor.moveToFirst(), true);
+        expect(await cursor.moveToLast(), true);
+        expect(await cursor.moveToNext(), false);
+        expect(await cursor.moveToPrevious(), true);
+
+        // returns false, but needed so that moveToNext further loop works properly
+        expect(await cursor.moveToPosition(-1), false);
 
         // verify commit
         int rowCount = 0;

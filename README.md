@@ -1,8 +1,28 @@
 # android_content_provider
 
-android_content_provider exposes ContentProvider and related ContentResolver APIs on Android
+This plugin exposes ContentProvider and related ContentResolver APIs on Android.
 
-## Configuring `AndroidContentProvider`
+### Android 11 package visibility
+
+Android 11 introduced a security mechanism that is called a [package visibility](https://developer.android.com/training/package-visibility).
+
+If you are using `AndroidContentResolver` and trying to access some content provider within a package that is not
+[visible by default](https://developer.android.com/training/package-visibility/automatic),
+your app will fail to connect to it.
+
+To fix this, add to your `AndroidManifest.xml` a new [`<queries>`](https://developer.android.com/guide/topics/manifest/queries-element) element:
+
+```xml
+<manifest>
+...
+    <queries>
+        <package android:name="com.example.app" />
+    </queries>
+...
+</manifest>
+```
+
+### Configuring `AndroidContentProvider`
 
 You may ignore these steps if you only want to use `AndroidContentResolver`.
 
@@ -113,7 +133,7 @@ public class MyAndroidContentProvider extends AndroidContentProvider {
 import 'package:android_content_provider/android_content_provider.dart';
 
 class MyAndroidContentProvider extends AndroidContentProvider {
-  MyAndroidContentProvider() : super('com.example.myapp.MyAndroidContentProvider');
+  MyAndroidContentProvider(String authority) : super(authority);
 
   @override
   Future<int> delete(
