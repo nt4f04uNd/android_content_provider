@@ -1,0 +1,23 @@
+name: android_content_provider_integration_test
+description: Integration test for the android_content_provider plugin.
+publish_to: 'none'
+
+environment:
+  sdk: ">=2.15.0-233.0.dev <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # integration test dependencies that are regularly should be in dev_dependencies
+  matcher: ^0.12.11
+  flutter_test:
+    sdk: flutter
+
+  android_content_provider:
+    path: ../
+
+dev_dependencies:
+  flutter_lints: ^1.0.0
+
+flutter:
+  uses-material-design: true
