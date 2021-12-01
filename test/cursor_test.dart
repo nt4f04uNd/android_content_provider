@@ -8,6 +8,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('NativeCursor', () {
+    setUp(() {
+      const MethodChannel('com.nt4f04und.android_content_provider/Cursor/id')
+          .setMockMethodCallHandler((call) {
+        // no-op
+      });
+    });
+
     test('constructor throws outside autoCloseScope', () {
       expect(() => NativeCursor.fromId('id'), throwsStateError);
     });
@@ -16,6 +23,16 @@ void main() {
       autoCloseScope(() {
         final cursor = NativeCursor.fromId('id');
         expect(cursor.toString(), 'NativeCursor(id)');
+      });
+    });
+
+    test('batch commitRange throws with invalid ranges', () {
+      autoCloseScope(() {
+        final cursor = NativeCursor.fromId('id');
+        final batch = cursor.batchedGet();
+        expect(() => batch.commitRange(0, 0), returnsNormally);
+        expect(() => batch.commitRange(0, -1), throwsAssertionError);
+        expect(() => batch.commitRange(-1, 0), throwsAssertionError);
       });
     });
 
@@ -63,6 +80,7 @@ void main() {
 
         // check the batch throws
         expect(() => batch.commit(), throwsAssertionError);
+        expect(() => batch.commitRange(0, 0), throwsAssertionError);
         expect(() => batch.getCount(), throwsAssertionError);
         expect(() => batch.getPosition(), throwsAssertionError);
         expect(() => batch.isFirst(), throwsAssertionError);
