@@ -4,14 +4,19 @@ version: 0.0.1
 homepage: https://github.com/nt4f04uNd/android_content_provider/
 
 environment:
-  sdk: ">=2.15.0-233.0.dev <3.0.0"
-  flutter: ">=2.5.0"
+  # The plugin needs the background method channels, so it targets this engine PR
+  # https://github.com/flutter/engine/pull/29377
+  #
+  # The Flutter engine roll commit is
+  # https://github.com/flutter/flutter/commit/4172c7dc005e18c7faec1ea0108cbb4de85ad4a8
+  sdk: ">=2.15.0-285.0.dev <3.0.0"
+  flutter: ">=2.6.0-12.0.pre.632"
 
 dependencies:
   flutter:
     sdk: flutter
-  uuid: ^3.0.5
   async: ^2.8.2
+  uuid: ^3.0.5
 
 dev_dependencies:
   flutter_test:
