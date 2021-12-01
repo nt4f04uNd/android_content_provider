@@ -173,7 +173,7 @@ Future<void> main() async {
         isA<TestFailure>().having((e) => e.message, 'message', 'dummy fail'),
       );
     } finally {
-      // await AndroidContentResolver.instance.unregisterContentObserver(observer);
+      await AndroidContentResolver.instance.unregisterContentObserver(observer);
     }
   });
 
