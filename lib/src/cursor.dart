@@ -566,7 +566,7 @@ class MatrixCursorDataRowBuilder {
   ///
   /// Returns this builder to support chaining.
   ///
-  /// Throws [CursorRangeError] if you try to add too many values
+  /// Throws [CursorRangeError] if you try to add too many values.
   MatrixCursorDataRowBuilder add(Object? columnValue) {
     if (_index == _endIndex) {
       throw CursorRangeError("No more columns left.");

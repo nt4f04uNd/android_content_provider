@@ -503,7 +503,7 @@ Future<void> main() async {
         expect(await cursor.moveToNext(), false);
         expect(await cursor.moveToPrevious(), true);
 
-        // returns false, but needed so that moveToNext further loop works properly
+        // returns false, but needed so that moveToNext loop below works properly
         expect(await cursor.moveToPosition(-1), false);
 
         // verify commit

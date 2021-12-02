@@ -70,7 +70,7 @@ public class MainActivity extends FlutterActivity {
 }
 ```
 
-2. Subclass `AndroidContentProvider` in native code, setting the authority you want to use
+2. Subclass `AndroidContentProvider` in native code, setting the authority and Dart entrypoint name you want to use
 
 * Kotlin
 
@@ -181,7 +181,7 @@ class MyAndroidContentProvider extends AndroidContentProvider {
 
 ```dart
 @pragma('vm:entry-point')
-void exampleContentProviderEntrypoint() async {
-   MyAndroidContentProvider('com.example.myapp.MyAndroidContentProvider');
+void exampleContentProviderEntrypoint() {
+  MyAndroidContentProvider('com.example.myapp.MyAndroidContentProvider');
 }
 ```
