@@ -73,7 +73,7 @@ class InteroperableCancellationSignal private constructor(
                     }
                     "cancel" -> {
                         // Save this to variable instead of nulling out setOnCancelListener,
-                        // because signal might receive have some custom listener, which for example
+                        // because signal might receive some custom listener, which for example
                         // happens in [AndroidContentProvider]
                         cancelledFromDart = true
                         signal?.cancel()

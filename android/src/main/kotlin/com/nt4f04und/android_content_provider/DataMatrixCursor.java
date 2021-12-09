@@ -65,6 +65,8 @@ public class DataMatrixCursor extends AbstractCursor {
     /**
      * Gets value at the given column for the current row.
      */
+    // needed to remove compile warnings
+    @SuppressWarnings("deprecation")
     private Object get(int column) {
         if (column < 0 || column >= columnCount) {
             throw new CursorIndexOutOfBoundsException("Requested column: "

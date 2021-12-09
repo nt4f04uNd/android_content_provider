@@ -1,4 +1,4 @@
-# android_content_provider
+# android_content_provider [![pub package](https://img.shields.io/pub/v/android_content_provider.svg)](https://pub.dev/packages/android_content_provider)
 
 This plugin exposes ContentProvider and related ContentResolver APIs on Android.
 

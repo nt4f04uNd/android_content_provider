@@ -66,8 +66,9 @@ abstract class Interoperable<T : Interoperable.InteroperableChannel>(
                             AndroidContentProviderPlugin.TrackingMapKeys.BACKGROUND_TASK_QUEUES.value)
             var taskQueue = taskQueueMap[classId]
             if (taskQueue == null) {
-                taskQueue = messenger.makeBackgroundTaskQueue(
-                        BinaryMessenger.TaskQueueOptions().setIsSerial(false))
+                taskQueue = messenger.makeBackgroundTaskQueue()
+                        // TODO: uncomment when this is on stable
+//                        BinaryMessenger.TaskQueueOptions().setIsSerial(false))
                 taskQueueMap[classId] = taskQueue
             }
             return taskQueue!!
@@ -170,8 +171,7 @@ abstract class Registrable<T : Interoperable.InteroperableChannel>(
     override fun destroy() {
         super.destroy()
         if (registry[id] != null) {
-            throw IllegalStateException("`destroy` was called while the object was still registered " +
-                    "by some code user. All users must call `forget` before this the `destroy` can be called.")
+            throw IllegalStateException("`destroy` was called while the object was still registered.")
         }
     }
 

@@ -1,5 +1,5 @@
 ///
-/// This examples shows off fetching songs from MediaStore with [AndroidContentResolver].
+/// This example shows off fetching songs from MediaStore with [AndroidContentResolver].
 ///
 ///
 
