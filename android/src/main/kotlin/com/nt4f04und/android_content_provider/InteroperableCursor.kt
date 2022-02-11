@@ -129,7 +129,7 @@ class InteroperableCursor(
                             } else {
                                 try {
                                     val operations = args["operations"] as ArrayList<ArrayList<Any>>
-                                    val results = mutableListOf<List<Any>>()
+                                    val results = mutableListOf<List<Any?>>()
                                     for (i in start..end) {
                                         results.add(applyBatch(operations))
                                         if (!cursor.moveToNext()) {
@@ -150,8 +150,8 @@ class InteroperableCursor(
         }
     }
 
-    private fun applyBatch(operations : ArrayList<ArrayList<Any>>) : MutableList<Any> {
-        val results = mutableListOf<Any>()
+    private fun applyBatch(operations : ArrayList<ArrayList<Any>>) : MutableList<Any?> {
+        val results = mutableListOf<Any?>()
         for (operationTuple in operations) {
             if (operationTuple.isEmpty() || operationTuple.size > 2) {
                 throw IllegalArgumentException(
@@ -161,7 +161,7 @@ class InteroperableCursor(
             val argument =
                     if (operationTuple.size > 1) operationTuple[1]
                     else null
-            val resultValue: Any = when (val operation = operationTuple.first() as String) {
+            val resultValue = when (val operation = operationTuple.first() as String) {
                 "getCount" -> cursor.count
                 "getPosition" -> cursor.position
                 "isFirst" -> cursor.isFirst

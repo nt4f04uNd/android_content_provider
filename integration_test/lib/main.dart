@@ -59,6 +59,26 @@ class Stubs {
     0.5, // getDouble
     null, // isNull
   ];
+  static final query_rowDataAllNulls = [
+    null, // getBytes
+    null, // getString
+    null, // getShort
+    null, // getInt
+    null, // getLong
+    null, // getFloat
+    null, // getDouble
+    null, // isNull
+  ];
+  static final query_rowDataAllNullsToExpect = [
+    null, // getBytes
+    null, // getString
+    0, // getShort
+    0, // getInt
+    0, // getLong
+    0.0, // getFloat
+    0.0, // getDouble
+    true, // isNull
+  ];
 }
 
 const authority =
@@ -67,10 +87,11 @@ const providerUri = 'content://$authority';
 
 const overflowingContentValuesTest =
     providerUri + '/overflowingContentValuesTest';
-const deleteWithExtrasTest = providerUri + '/deleteWithExtras';
-const insertWithExtrasTest = providerUri + '/insertWithExtras';
-const queryWithExtrasTest = providerUri + '/queryWithExtras';
-const updateWithExtrasTest = providerUri + '/updateWithExtras';
+const deleteWithExtrasTest = providerUri + '/deleteWithExtrasTest';
+const insertWithExtrasTest = providerUri + '/insertWithExtrasTest';
+const queryWithExtrasTest = providerUri + '/queryWithExtrasTest';
+const updateWithExtrasTest = providerUri + '/updateWithExtrasTest';
+const nullableCursorTest = providerUri + '/nullableCursorTest';
 
 typedef OnChangeCallback = void Function(
   bool selfChange,
@@ -373,7 +394,8 @@ Future<void> main() async {
       expect(result, Stubs.string);
     });
 
-    test("query and queryWithExtras", () async {
+    test("NativeCursor - general test, also query and queryWithExtras",
+        () async {
       Future<void> testCursor(NativeCursor? cursor) async {
         cursor!;
 
@@ -466,7 +488,7 @@ Future<void> main() async {
           batch.getType(i);
         }
 
-        void testRow(List<Object> row) {
+        void verifyRow(List<Object?> row) {
           expect(row, <Object?>[
             1, // getCount
             0, // getPosition
@@ -476,12 +498,15 @@ Future<void> main() async {
             false, // isAfterLast
             // getColumnIndex
             ...List.generate(expectedColumnCount, (index) => index),
-            -1,
+            -1, // getColumnIndex - missing-column
             ...Stubs.query_columnNames, // getColumnName
             Stubs.query_columnNames, // getColumnNames
             expectedColumnCount, // getColumnCount
-            // get___ methods
-            ...[...List.from(Stubs.query_rowData)..removeLast(), true],
+            ...[
+              // get___ methods
+              ...List.from(Stubs.query_rowData)..removeLast(),
+              true, // isNull
+            ],
             // getType
             ...<Type>[
               Uint8List,
@@ -511,7 +536,7 @@ Future<void> main() async {
         while (await cursor.moveToNext()) {
           rowCount += 1;
           final row = await batch.commit();
-          testRow(row);
+          verifyRow(row);
         }
         expect(rowCount, 1);
 
@@ -519,7 +544,7 @@ Future<void> main() async {
         final rows = await batch.commitRange(0, 1);
         expect(rows, hasLength(1));
         for (final row in rows) {
-          testRow(row);
+          verifyRow(row);
         }
       }
 
@@ -547,6 +572,65 @@ Future<void> main() async {
           queryArgs: Stubs.sql_extras,
           cancellationSignal: CancellationSignal()..cancel(),
         ));
+      });
+    });
+
+    test("NativeCursor - can get null values", () async {
+      await autoCloseScope(() async {
+        final cursor = await AndroidContentResolver.instance.query(
+          uri: nullableCursorTest,
+          projection: null,
+          selection: null,
+          selectionArgs: null,
+          sortOrder: null,
+        );
+        final batch = cursor!.batchedGet()
+          ..getBytes(0)
+          ..getString(1)
+          ..getShort(2)
+          ..getInt(3)
+          ..getLong(4)
+          ..getFloat(5)
+          ..getDouble(6)
+          ..isNull(7);
+        while (await cursor.moveToNext()) {
+          final row = await batch.commit();
+          expect(row, Stubs.query_rowDataAllNullsToExpect);
+        }
+        final rows = await batch.commitRange(0, 1);
+        for (final row in rows) {
+          expect(row, Stubs.query_rowDataAllNullsToExpect);
+        }
+      });
+    });
+
+    test("NativeCursor - getColumnIndexOrThrow", () async {
+      await autoCloseScope(() async {
+        final cursor = await AndroidContentResolver.instance.query(
+          uri: nullableCursorTest,
+          projection: null,
+          selection: null,
+          selectionArgs: null,
+          sortOrder: null,
+        );
+
+        final goodBatch = cursor!.batchedGet()
+          ..getColumnIndexOrThrow(Stubs.query_columnNames.first);
+        final badBatch = cursor.batchedGet()
+          ..getColumnIndexOrThrow('missing-column');
+
+        final throwsMissingColumn = throwsA(isA<PlatformException>().having(
+          (e) => e.details,
+          'details',
+          contains("column 'missing-column' does not exist"),
+        ));
+
+        while (await cursor.moveToNext()) {
+          expect(() => goodBatch.commit(), returnsNormally);
+          expect(() => badBatch.commit(), throwsMissingColumn);
+        }
+        expect(() => goodBatch.commitRange(0, 1), returnsNormally);
+        expect(() => badBatch.commitRange(0, 1), throwsMissingColumn);
       });
     });
 
@@ -891,6 +975,13 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
         notificationUris: [providerUri],
       )..extras = Stubs.bundle;
       cursorData.addRow(Stubs.query_rowData);
+      return cursorData;
+    } else if (uri == nullableCursorTest) {
+      final cursorData = MatrixCursorData(
+        columnNames: Stubs.query_columnNames,
+        notificationUris: [providerUri],
+      )..extras = Stubs.bundle;
+      cursorData.addRow(Stubs.query_rowDataAllNulls);
       return cursorData;
     } else {
       return super.queryWithExtras(

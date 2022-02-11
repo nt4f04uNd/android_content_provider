@@ -222,7 +222,7 @@ class NativeCursor extends Interoperable implements Closeable {
 
 /// Represents a batched get operation returned from [NativeCursor.batchedGet].
 ///
-/// Cursor get operations are can often be represented as batches, such as
+/// Cursor get operations can often be represented as batches, such as
 /// reading all values from each row. This representation allows
 /// to reduce Flutter channel bottle-necking.
 ///
@@ -247,7 +247,7 @@ class NativeCursorGetBatch {
     _operations.add([method, argument]);
   }
 
-  void _correctResult(List<Object> result) {
+  void _correctResult(List<Object?> result) {
     for (final index in _stringListIndexes) {
       result[index] = _asList<String>(result[index])!;
     }
@@ -260,10 +260,10 @@ class NativeCursorGetBatch {
   ///
   /// Only one [commit] or [commitRange] operation can run at once, other calls
   /// won't start before the ongoing commit ends.
-  Future<List<Object>> commit() async {
+  Future<List<Object?>> commit() async {
     assert(!_cursor._closed);
     final result = await _cursor._methodChannel
-        .invokeListMethod<Object>('commitGetBatch', {
+        .invokeListMethod<Object?>('commitGetBatch', {
       'operations': _operations,
     });
     _correctResult(result!);
@@ -281,7 +281,7 @@ class NativeCursorGetBatch {
   /// won't start before the ongoing commit ends.
   ///
   /// This function does not affect the cursor position.
-  Future<List<List<Object>>> commitRange(int start, int end) async {
+  Future<List<List<Object?>>> commitRange(int start, int end) async {
     assert(!_cursor._closed);
     assert(start >= 0);
     assert(start <= end);
@@ -295,11 +295,11 @@ class NativeCursorGetBatch {
       'end': end,
     });
     for (int i = 0; i < result!.length; i++) {
-      final row = result[i].cast<Object>();
+      final row = result[i].cast<Object?>();
       result[i] = row;
       _correctResult(row);
     }
-    return result.cast<List<Object>>();
+    return result.cast<List<Object?>>();
   }
 
   /// Will return [int].
@@ -381,49 +381,49 @@ class NativeCursorGetBatch {
     return this;
   }
 
-  /// Will return [Uint8List].
+  /// Will return [Uint8List] or `null`.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getblob
   NativeCursorGetBatch getBytes(int columnIndex) {
     _add('getBytes', columnIndex);
     return this;
   }
 
-  /// Will return [String].
+  /// Will return [String] or `null`.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getstring
   NativeCursorGetBatch getString(int columnIndex) {
     _add('getString', columnIndex);
     return this;
   }
 
-  /// Will return [int].
+  /// Will return [int] or `0`, when the column value `null`.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getshort
   NativeCursorGetBatch getShort(int columnIndex) {
     _add('getShort', columnIndex);
     return this;
   }
 
-  /// Will return [int].
+  /// Will return [int] or `0`, when the column value `null.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getint
   NativeCursorGetBatch getInt(int columnIndex) {
     _add('getInt', columnIndex);
     return this;
   }
 
-  /// Will return [int].
+  /// Will return [int] or `0`, when the column value `null.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getlong
   NativeCursorGetBatch getLong(int columnIndex) {
     _add('getLong', columnIndex);
     return this;
   }
 
-  /// Will return [double].
+  /// Will return [double] or `0.0`, when the column value `null.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getfloat
   NativeCursorGetBatch getFloat(int columnIndex) {
     _add('getFloat', columnIndex);
     return this;
   }
 
-  /// Will return [double].
+  /// Will return [double] or `0.0`, when the column value `null.
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getdouble
   NativeCursorGetBatch getDouble(int columnIndex) {
     _add('getDouble', columnIndex);
