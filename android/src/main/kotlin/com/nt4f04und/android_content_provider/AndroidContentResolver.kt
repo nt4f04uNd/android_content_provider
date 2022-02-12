@@ -6,12 +6,18 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
+import android.util.Log
 import android.util.Size
 import androidx.core.graphics.drawable.toBitmap
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.Executors
+import android.util.TimingLogger
+import kotlin.system.measureTimeMillis
+import kotlin.time.measureTime
+
 
 internal class AndroidContentResolver(
         private val context: Context,
@@ -32,6 +38,8 @@ internal class AndroidContentResolver(
     fun destroy() {
         methodChannel.setMethodCallHandler(null)
     }
+
+    private val executor = Executors.newCachedThreadPool()
 
     private val contentResolver: ContentResolver
         get() = context.applicationContext.contentResolver
@@ -261,7 +269,7 @@ internal class AndroidContentResolver(
                     contentResolver.registerContentObserver(
                             getUri(args["uri"]),
                             args["notifyForDescendants"] as Boolean,
-                            registrableObserver.observer!!)
+                            registrableObserver.observer)
                     result.success(null)
                 }
                 "uncanonicalize" -> {
@@ -310,32 +318,62 @@ internal class AndroidContentResolver(
                             Size(width, height),
                             interoperableSignal?.signal)))
                     } else {
-                        // Fallback to something similar prior Android Q
-                        fun isCancelled(): Boolean {
-                            return interoperableSignal?.signal?.isCanceled ?: false
-                        }
-                        if (isCancelled())
-                            return result.success(null)
-                        val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
-                        parcelFileDescriptor.use { pfd ->
-                            val fileDescriptor = pfd
-                                ?.fileDescriptor
-                                ?: return result.success(null)
-                            val options = BitmapFactory.Options()
-                            options.inJustDecodeBounds = true
-                            if (isCancelled())
-                                return result.success(null)
-                            BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
-                            options.inSampleSize = calculateInSampleSize(options, width, height)
-                            options.inJustDecodeBounds = false
-                            if (isCancelled())
-                                return result.success(null)
-                            val bitmap =
-                                BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options)
-                            result.success(
-                                if (bitmap != null) bitmapToBytes(bitmap)
-                                else null
-                            )
+                        executor.execute {
+                            try {
+                                // Fallback to something similar prior Android Q
+                                fun isCancelled(): Boolean {
+                                    return interoperableSignal?.signal?.isCanceled ?: false
+                                }
+                                fun print(s: String) {
+                                    Log.w("_WHAT", s)
+                                }
+                                if (isCancelled())
+                                    return@execute result.success(null)
+                                var start = System.currentTimeMillis()
+                                val parcelFileDescriptor =
+                                    contentResolver.openFileDescriptor(uri, "r")
+                                var time = System.currentTimeMillis() - start
+                                print("1 $time")
+                                parcelFileDescriptor.use { pfd ->
+                                    val fileDescriptor = pfd
+                                        ?.fileDescriptor
+                                        ?: return@execute result.success(null)
+                                    val options = BitmapFactory.Options()
+                                    options.inJustDecodeBounds = true
+                                    if (isCancelled())
+                                        return@execute result.success(null)
+                                    start = System.currentTimeMillis()
+                                    BitmapFactory.decodeFileDescriptor(
+                                        fileDescriptor,
+                                        null,
+                                        options
+                                    )
+                                    time = System.currentTimeMillis() - start
+                                    print("2 $time")
+                                    options.inSampleSize =
+                                        calculateInSampleSize(options, width, height)
+                                    options.inJustDecodeBounds = false
+                                    if (isCancelled())
+                                        return@execute result.success(null)
+                                    start = System.currentTimeMillis()
+                                    val bitmap =
+                                        BitmapFactory.decodeFileDescriptor(
+                                            fileDescriptor,
+                                            null,
+                                            options
+                                        )
+                                    time = System.currentTimeMillis() - start
+                                    print("3 $time")
+                                    result.success(
+                                        if (bitmap != null) bitmapToBytes(bitmap)
+                                        else null
+                                    )
+                                }
+                            } catch (e: Exception) {
+                                methodCallFail(result, e)
+                            } finally {
+                                interoperableSignal?.destroy()
+                            }
                         }
                     }
                 }
