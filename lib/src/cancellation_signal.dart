@@ -21,8 +21,13 @@ class CancellationSignal extends ReceivedCancellationSignal {
     _cancelled = true;
     _cancelListener?.call();
     _initCompleter.operation.then((_) async {
-      _methodChannel.setMethodCallHandler(null);
-      await _methodChannel.invokeMethod<void>('cancel', {'id': id});
+      try {
+        await _methodChannel.invokeMethod<void>('cancel', {'id': id});
+      } catch (e) {
+        // Ignore because the signal might be already disposed on native side
+      } finally {
+        dispose();
+      }
     });
   }
 }

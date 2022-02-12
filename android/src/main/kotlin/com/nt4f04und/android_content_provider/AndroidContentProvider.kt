@@ -115,9 +115,8 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
                 engine.dartExecutor.binaryMessenger,
                 "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
                 AndroidContentProviderPlugin.pluginMethodCodec,
-                engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue()))
-                        // TODO: uncomment when this is on stable
-//                        BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
+                engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
+                    BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
         @Suppress("UNCHECKED_CAST")
         methodChannel.methodChannel.setMethodCallHandler { call, result ->
             try {
@@ -182,14 +181,14 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
     /** Calls [MethodChannel.invokeMethod], blocking the caller thread. */
     @SuppressWarnings("WeakerAccess")
     protected fun invokeMethod(method: String, arguments: Any?): Any? {
-        return methodChannel!!.invokeMethod(method, arguments)
+        return methodChannel.invokeMethod(method, arguments)
     }
 
     /** Calls [MethodChannel.invokeMethod], not blocking the caller thread. */
     @SuppressWarnings("WeakerAccess")
     protected fun asyncInvokeMethod(method: String, arguments: Any?) {
         Handler(Looper.getMainLooper()).post {
-            methodChannel!!.methodChannel.invokeMethod(method, arguments)
+            methodChannel.methodChannel.invokeMethod(method, arguments)
         }
     }
 

@@ -21,9 +21,8 @@ internal class AndroidContentResolver(
             messenger,
             "${AndroidContentProviderPlugin.channelPrefix}/ContentResolver",
             AndroidContentProviderPlugin.pluginMethodCodec,
-            messenger.makeBackgroundTaskQueue())
-                    // TODO: uncomment when this is on stable
-//                    BinaryMessenger.TaskQueueOptions().setIsSerial(false)))
+            messenger.makeBackgroundTaskQueue(
+                BinaryMessenger.TaskQueueOptions().setIsSerial(false)))
 
     init {
         methodChannel.setMethodCallHandler(this)

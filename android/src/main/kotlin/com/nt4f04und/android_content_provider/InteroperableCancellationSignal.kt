@@ -48,13 +48,15 @@ class InteroperableCancellationSignal private constructor(
                 pendingCancel = true
             } else {
                 pendingCancel = false
-                // Dart already know the signal is cancelled, because it was the
+                // Dart already knows the signal is cancelled, because it was the
                 // initiator of the cancel.
                 if (!cancelledFromDart) {
                     methodChannel?.setMethodCallHandler(null)
                     Handler(Looper.getMainLooper()).post {
                         try {
                             methodChannel?.invokeMethod("cancel", null)
+                        } catch (e: Exception) {
+                            // Ignore because the signal might be already disposed on Dart side
                         } finally {
                             destroy()
                         }

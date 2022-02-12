@@ -23,7 +23,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  List<List<Object>>? songs;
+  List<List<Object?>>? songs;
 
   @override
   void initState() {
@@ -91,8 +91,8 @@ class _MyAppState extends State<MyApp> {
             : ListView.builder(
                 itemExtent: 50,
                 itemCount: songs!.length,
-                itemBuilder: (context, index) => Text(
-                  songs![index].last as String,
+                itemBuilder: (context, index) => ListTile(
+                  title: Text(songs![index].last as String),
                 ),
               ),
       ),

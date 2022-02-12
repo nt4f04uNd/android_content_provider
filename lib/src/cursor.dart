@@ -184,7 +184,7 @@ class NativeCursor extends Interoperable implements Closeable {
   @RequiresApiOrNoop(23)
   Future<void> setExtras(BundleMap extras) {
     assert(!_closed);
-    return _methodChannel.invokeMethod<bool>('setExtras', {
+    return _methodChannel.invokeMethod<void>('setExtras', {
       'extras': extras,
     });
   }

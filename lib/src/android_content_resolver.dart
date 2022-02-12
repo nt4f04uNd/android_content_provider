@@ -5,6 +5,14 @@ part of android_content_provider;
 ///
 /// Doesn't expose a subset of methods related to sync API and URI permissions,
 /// it seems like they would fit separate packages.
+///
+/// Some methods are not compatible with older Android versions.
+/// They are marked with 1 of these annotations:
+///
+/// * [RequiresApiOrNoop]
+/// * [RequiresApiOrThrows]
+/// * [RequiresApiOr]
+///
 class AndroidContentResolver {
   /// Creates a communication interface with native Android ContentResolver.
   ///
@@ -294,7 +302,7 @@ class AndroidContentResolver {
         await _methodChannel.invokeMapMethod<String, Object?>('getTypeInfo', {
       'mimeType': mimeType,
     });
-    return MimeTypeInfo.fromMap(result!);
+    return result == null ? null : MimeTypeInfo.fromMap(result);
   }
 
   /// insert(uri: Uri, values: ContentValues?): Uri?
@@ -324,7 +332,7 @@ class AndroidContentResolver {
   /// loadThumbnail(uri: Uri, size: Size, signal: CancellationSignal?): Bitmap
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#loadthumbnail
   @RequiresApiOrThrows(29)
-  Future<Uint8List?> loadThumbnail({
+  Future<Uint8List> loadThumbnail({
     required String uri,
     required int width,
     required int height,
