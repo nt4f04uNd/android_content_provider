@@ -16,6 +16,7 @@ import 'package:uuid/uuid.dart';
 
 part 'src/android_content_provider.dart';
 part 'src/android_content_resolver.dart';
+part 'src/android_content_resolver_compat.dart';
 part 'src/annotation.dart';
 part 'src/calling_identity.dart';
 part 'src/cancellation_signal.dart';
