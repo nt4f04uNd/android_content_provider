@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Size
 import androidx.core.graphics.drawable.toBitmap
@@ -39,6 +40,27 @@ internal class AndroidContentResolver(
         val stream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
         return stream.toByteArray()
+    }
+
+    // https://stackoverflow.com/a/28927163/9710294
+    private fun calculateInSampleSize(
+        options: BitmapFactory.Options,
+        reqWidth: Int,
+        reqHeight: Int
+    ): Int {
+        val height = options.outHeight
+        val width = options.outWidth
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight = height / 2
+            val halfWidth = width / 2
+            while (halfHeight / inSampleSize >= reqHeight
+                && halfWidth / inSampleSize >= reqWidth
+            ) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -272,6 +294,49 @@ internal class AndroidContentResolver(
                                 mapToBundle(asMap(args["extras"]))))
                     } else {
                         throwApiLevelError(Build.VERSION_CODES.R)
+                    }
+                }
+                "compat_loadThumbnail" -> {
+                    val cancellationSignalId = args!!["cancellationSignal"] as String?
+                    cancellationSignalId?.let {
+                        interoperableSignal = InteroperableCancellationSignal.fromId(messenger, it)
+                    }
+                    val uri = getUri(args["uri"])
+                    val width = getLong(args["width"])!!.toInt()
+                    val height = getLong(args["height"])!!.toInt()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        result.success(bitmapToBytes(contentResolver.loadThumbnail(
+                            uri,
+                            Size(width, height),
+                            interoperableSignal?.signal)))
+                    } else {
+                        // Fallback to something similar prior Android Q
+                        fun isCancelled(): Boolean {
+                            return interoperableSignal?.signal?.isCanceled ?: false
+                        }
+                        if (isCancelled())
+                            return result.success(null)
+                        val parcelFileDescriptor = contentResolver.openFileDescriptor(uri, "r")
+                        parcelFileDescriptor.use { pfd ->
+                            val fileDescriptor = pfd
+                                ?.fileDescriptor
+                                ?: return result.success(null)
+                            val options = BitmapFactory.Options()
+                            options.inJustDecodeBounds = true
+                            if (isCancelled())
+                                return result.success(null)
+                            BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options);
+                            options.inSampleSize = calculateInSampleSize(options, width, height)
+                            options.inJustDecodeBounds = false
+                            if (isCancelled())
+                                return result.success(null)
+                            val bitmap =
+                                BitmapFactory.decodeFileDescriptor(fileDescriptor, null, options)
+                            result.success(
+                                if (bitmap != null) bitmapToBytes(bitmap)
+                                else null
+                            )
+                        }
                     }
                 }
                 else -> {
