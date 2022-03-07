@@ -16,6 +16,7 @@ void main() {
       channel.setMockMethodCallHandler((call) {
         initCount += 1;
         expect(call.method, 'init');
+        return null;
       });
       final signal = ReceivedCancellationSignal.fromId('id');
       expect(signal.cancelled, false);
@@ -62,6 +63,7 @@ void main() {
       final completer = Completer<void>();
       channel.setMockMethodCallHandler((call) {
         completer.complete();
+        return null;
       });
       signal.cancel();
       expect(signal.cancelled, true);
@@ -76,7 +78,7 @@ extension MethodChannelMockInvoke on MethodChannel {
     const codec = StandardMethodCodec();
     final data = codec.encodeMethodCall(MethodCall(method, arguments));
 
-    return ServicesBinding.instance?.defaultBinaryMessenger
+    return ServicesBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
       name,
       data,

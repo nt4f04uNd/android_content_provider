@@ -546,92 +546,90 @@ Future<void> main() async {
         for (final row in rows) {
           verifyRow(row);
         }
+
+        cursor.close();
       }
 
-      await autoCloseScope(() async {
-        await testCursor(await AndroidContentResolver.instance.query(
-          uri: providerUri,
-          projection: Stubs.stringList,
-          selection: Stubs.string,
-          selectionArgs: Stubs.stringList,
-          sortOrder: Stubs.string,
-        ));
+      await testCursor(await AndroidContentResolver.instance.query(
+        uri: providerUri,
+        projection: Stubs.stringList,
+        selection: Stubs.string,
+        selectionArgs: Stubs.stringList,
+        sortOrder: Stubs.string,
+      ));
 
-        await testCursor(await AndroidContentResolver.instance.queryWithSignal(
-          uri: providerUri,
-          projection: Stubs.stringList,
-          selection: Stubs.string,
-          selectionArgs: Stubs.stringList,
-          sortOrder: Stubs.string,
-          cancellationSignal: CancellationSignal()..cancel(),
-        ));
+      await testCursor(await AndroidContentResolver.instance.queryWithSignal(
+        uri: providerUri,
+        projection: Stubs.stringList,
+        selection: Stubs.string,
+        selectionArgs: Stubs.stringList,
+        sortOrder: Stubs.string,
+        cancellationSignal: CancellationSignal()..cancel(),
+      ));
 
-        await testCursor(await AndroidContentResolver.instance.queryWithExtras(
-          uri: queryWithExtrasTest,
-          projection: Stubs.stringList,
-          queryArgs: Stubs.sql_extras,
-          cancellationSignal: CancellationSignal()..cancel(),
-        ));
-      });
+      await testCursor(await AndroidContentResolver.instance.queryWithExtras(
+        uri: queryWithExtrasTest,
+        projection: Stubs.stringList,
+        queryArgs: Stubs.sql_extras,
+        cancellationSignal: CancellationSignal()..cancel(),
+      ));
     });
 
     test("NativeCursor - can get null values", () async {
-      await autoCloseScope(() async {
-        final cursor = await AndroidContentResolver.instance.query(
-          uri: nullableCursorTest,
-          projection: null,
-          selection: null,
-          selectionArgs: null,
-          sortOrder: null,
-        );
-        final batch = cursor!.batchedGet()
-          ..getBytes(0)
-          ..getString(1)
-          ..getShort(2)
-          ..getInt(3)
-          ..getLong(4)
-          ..getFloat(5)
-          ..getDouble(6)
-          ..isNull(7);
-        while (await cursor.moveToNext()) {
-          final row = await batch.commit();
-          expect(row, Stubs.query_rowDataAllNullsToExpect);
-        }
-        final rows = await batch.commitRange(0, 1);
-        for (final row in rows) {
-          expect(row, Stubs.query_rowDataAllNullsToExpect);
-        }
-      });
+      final cursor = await AndroidContentResolver.instance.query(
+        uri: nullableCursorTest,
+        projection: null,
+        selection: null,
+        selectionArgs: null,
+        sortOrder: null,
+      );
+      final batch = cursor!.batchedGet()
+        ..getBytes(0)
+        ..getString(1)
+        ..getShort(2)
+        ..getInt(3)
+        ..getLong(4)
+        ..getFloat(5)
+        ..getDouble(6)
+        ..isNull(7);
+      while (await cursor.moveToNext()) {
+        final row = await batch.commit();
+        expect(row, Stubs.query_rowDataAllNullsToExpect);
+      }
+      final rows = await batch.commitRange(0, 1);
+      for (final row in rows) {
+        expect(row, Stubs.query_rowDataAllNullsToExpect);
+      }
+      cursor.close();
     });
 
     test("NativeCursor - getColumnIndexOrThrow", () async {
-      await autoCloseScope(() async {
-        final cursor = await AndroidContentResolver.instance.query(
-          uri: nullableCursorTest,
-          projection: null,
-          selection: null,
-          selectionArgs: null,
-          sortOrder: null,
-        );
+      final cursor = await AndroidContentResolver.instance.query(
+        uri: nullableCursorTest,
+        projection: null,
+        selection: null,
+        selectionArgs: null,
+        sortOrder: null,
+      );
 
-        final goodBatch = cursor!.batchedGet()
-          ..getColumnIndexOrThrow(Stubs.query_columnNames.first);
-        final badBatch = cursor.batchedGet()
-          ..getColumnIndexOrThrow('missing-column');
+      final goodBatch = cursor!.batchedGet()
+        ..getColumnIndexOrThrow(Stubs.query_columnNames.first);
+      final badBatch = cursor.batchedGet()
+        ..getColumnIndexOrThrow('missing-column');
 
-        final throwsMissingColumn = throwsA(isA<PlatformException>().having(
-          (e) => e.details,
-          'details',
-          contains("column 'missing-column' does not exist"),
-        ));
+      final throwsMissingColumn = throwsA(isA<PlatformException>().having(
+        (e) => e.details,
+        'details',
+        contains("column 'missing-column' does not exist"),
+      ));
 
-        while (await cursor.moveToNext()) {
-          expect(() => goodBatch.commit(), returnsNormally);
-          expect(() => badBatch.commit(), throwsMissingColumn);
-        }
-        expect(() => goodBatch.commitRange(0, 1), returnsNormally);
-        expect(() => badBatch.commitRange(0, 1), throwsMissingColumn);
-      });
+      while (await cursor.moveToNext()) {
+        expect(() => goodBatch.commit(), returnsNormally);
+        expect(() => badBatch.commit(), throwsMissingColumn);
+      }
+      expect(() => goodBatch.commitRange(0, 1), returnsNormally);
+      expect(() => badBatch.commitRange(0, 1), throwsMissingColumn);
+      cursor.close();
     });
 
     test("refresh", () async {

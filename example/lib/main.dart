@@ -23,7 +23,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  List<List<Object>>? songs;
+  List<List<Object?>>? songs;
 
   @override
   void initState() {
@@ -32,16 +32,15 @@ class _MyAppState extends State<MyApp> {
   }
 
   void fetch() async {
-    await autoCloseScope(() async {
-      final cursor = await AndroidContentResolver.instance.query(
-        // MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        uri: 'content://media/external/audio/media',
-        projection: ['_id', 'title'],
-        selection: null,
-        selectionArgs: null,
-        sortOrder: null,
-      );
-
+    final cursor = await AndroidContentResolver.instance.query(
+      // MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+      uri: 'content://media/external/audio/media',
+      projection: ['_id', 'title'],
+      selection: null,
+      selectionArgs: null,
+      sortOrder: null,
+    );
+    try {
       final end = (await cursor!.batchedGet().getCount().commit()).first as int;
       final batch = cursor.batchedGet().getInt(0).getString(1);
 
@@ -68,7 +67,9 @@ class _MyAppState extends State<MyApp> {
 
       // prints true
       print(slowSongs.toString() == songs.toString());
-    });
+    } finally {
+      cursor?.close();
+    }
   }
 
   Future<void> measure(Function callback) async {
@@ -91,8 +92,8 @@ class _MyAppState extends State<MyApp> {
             : ListView.builder(
                 itemExtent: 50,
                 itemCount: songs!.length,
-                itemBuilder: (context, index) => Text(
-                  songs![index].last as String,
+                itemBuilder: (context, index) => ListTile(
+                  title: Text(songs![index].last as String),
                 ),
               ),
       ),

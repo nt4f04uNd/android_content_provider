@@ -127,7 +127,7 @@ public class MyAndroidContentProvider extends AndroidContentProvider {
    android:writePermission="com.example.myapp.permission.WRITE" />
 ```
 
-4. Sublcass `AndroidContentProvider` in Dart code and override needed methods
+4. Subclass `AndroidContentProvider` in Dart code and override needed methods
 
 ```dart
 import 'package:android_content_provider/android_content_provider.dart';

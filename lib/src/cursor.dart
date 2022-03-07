@@ -3,9 +3,20 @@ part of android_content_provider;
 /// The cursor that calls into platform Cursor
 /// https://developer.android.com/reference/android/database/Cursor
 ///
-/// Must be created within [autoCloseScope] and will be automatically closed
-/// once its callback ends. Therefore, do not try to store cursor instances and get the
-/// data you need within the scope callback.
+/// After you are done with using the cursor, you should call [close] on it.
+/// This means that all operations on cursor should be wrapped in try-finally block:
+///
+/// ```
+/// final NativeCursor? cursor = ...;
+/// try {
+///   // do something with cursor
+/// } finally {
+///   cursor?.close();
+/// }
+/// ```
+///
+/// In case you forget to do that, the plugin will do this for you when
+/// the Flutter app closes, but it better to not forget it.
 ///
 /// The operations are packed into [NativeCursorGetBatch] to achieve the best performance
 /// by reducing Flutter channel bottle-necking. Cursor operations can often be
@@ -20,7 +31,7 @@ part of android_content_provider;
 ///
 /// See also:
 ///  * [CursorData], which is a class, returned from [AndroidContentProvider.query].
-class NativeCursor extends Interoperable implements Closeable {
+class NativeCursor extends Interoperable {
   /// Creates native cursor from an existing ID.
   @visibleForTesting
   NativeCursor.fromId(String id)
@@ -28,14 +39,7 @@ class NativeCursor extends Interoperable implements Closeable {
           '$_channelPrefix/Cursor/$id',
           _pluginMethodCodec,
         ),
-        super.fromId(id) {
-    Closeable.autoClose(
-      this,
-      errorMessage:
-          "AndroidContentResolver.query methods must be called inside `autoCloseScope`. "
-          "The $NativeCursor was instantiated outside the `autoCloseScope`.",
-    );
-  }
+        super.fromId(id);
 
   /// Supported types in Android SQLite.
   ///
@@ -66,7 +70,6 @@ class NativeCursor extends Interoperable implements Closeable {
 
   /// Closes the cursor, releasing all of its resources and making it completely invalid
   /// https://developer.android.com/reference/android/database/Cursor#close()
-  @override
   Future<void> close() async {
     if (!_closed) {
       _closed = true;
@@ -184,7 +187,7 @@ class NativeCursor extends Interoperable implements Closeable {
   @RequiresApiOrNoop(23)
   Future<void> setExtras(BundleMap extras) {
     assert(!_closed);
-    return _methodChannel.invokeMethod<bool>('setExtras', {
+    return _methodChannel.invokeMethod<void>('setExtras', {
       'extras': extras,
     });
   }

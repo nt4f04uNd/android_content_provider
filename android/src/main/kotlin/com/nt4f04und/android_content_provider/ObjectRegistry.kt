@@ -66,9 +66,8 @@ abstract class Interoperable<T : Interoperable.InteroperableChannel>(
                             AndroidContentProviderPlugin.TrackingMapKeys.BACKGROUND_TASK_QUEUES.value)
             var taskQueue = taskQueueMap[classId]
             if (taskQueue == null) {
-                taskQueue = messenger.makeBackgroundTaskQueue()
-                        // TODO: uncomment when this is on stable
-//                        BinaryMessenger.TaskQueueOptions().setIsSerial(false))
+                taskQueue = messenger.makeBackgroundTaskQueue(
+                    BinaryMessenger.TaskQueueOptions().setIsSerial(false))
                 taskQueueMap[classId] = taskQueue
             }
             return taskQueue!!

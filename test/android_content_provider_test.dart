@@ -2,11 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 // import 'package:android_content_provider/android_content_provider.dart';
 
 void main() {
-  test('test', () {
-
-  });
+  test('test', () {});
 }
-
 
 // TODO unit tests. integration tests have almost 100% coverage.
 //
@@ -24,12 +21,9 @@ void main() {
 // * (done) MatrixCursorDataRowBuilder
 // * (done) CursorRangeError
 // * Interoperable
-// * (done) Closeable and autoCloseScope
 // * (done) CancellationSignal
 // * (done) ReceivedCancellationSignal
 // * AndroidContentProvider
 // * (done) MimeTypeInfo
 // * ContentObserver
 // * AndroidContentResolver
-
-
