@@ -32,6 +32,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+            
+        <provider
+            android:name=".MyAndroidContentProvider"
+            android:authorities="com.nt4f04und.android_content_provider_example.MyAndroidContentProvider"
+            android:exported="true" />
 
     </application>
 </manifest>

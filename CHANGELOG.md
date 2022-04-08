@@ -1,3 +1,7 @@
+## 0.2.1
+
+* Add AndroidContentProvider example and make README setup instructions more clear
+
 ## 0.2.0
 
 * Fixed CancellationSignal sometimes throw MissingPluginException on cancel
