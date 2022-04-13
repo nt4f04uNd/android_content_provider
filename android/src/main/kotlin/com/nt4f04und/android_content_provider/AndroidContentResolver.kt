@@ -20,9 +20,7 @@ internal class AndroidContentResolver(
     private val methodChannel: MethodChannel = MethodChannel(
             messenger,
             "${AndroidContentProviderPlugin.channelPrefix}/ContentResolver",
-            AndroidContentProviderPlugin.pluginMethodCodec,
-            messenger.makeBackgroundTaskQueue(
-                BinaryMessenger.TaskQueueOptions().setIsSerial(false)))
+            AndroidContentProviderPlugin.pluginMethodCodec)
 
     init {
         methodChannel.setMethodCallHandler(this)

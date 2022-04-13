@@ -114,9 +114,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         methodChannel = SynchronousMethodChannel(MethodChannel(
                 engine.dartExecutor.binaryMessenger,
                 "${AndroidContentProviderPlugin.channelPrefix}/ContentProvider/$authority",
-                AndroidContentProviderPlugin.pluginMethodCodec,
-                engine.dartExecutor.binaryMessenger.makeBackgroundTaskQueue(
-                    BinaryMessenger.TaskQueueOptions().setIsSerial(false))))
+                AndroidContentProviderPlugin.pluginMethodCodec))
         @Suppress("UNCHECKED_CAST")
         methodChannel.methodChannel.setMethodCallHandler { call, result ->
             try {
