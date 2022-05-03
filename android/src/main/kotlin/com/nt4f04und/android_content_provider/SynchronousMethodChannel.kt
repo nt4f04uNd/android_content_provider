@@ -29,7 +29,7 @@ internal class SynchronousMethodChannel(val methodChannel: MethodChannel) {
                         synchronized(lock) { lock.notify() }
                     }
 
-                    override fun error(code: String?, msg: String?, details: Any?) {
+                    override fun error(code: String, msg: String?, details: Any?) {
                         error = Exception("code: $code, message: $msg, details: $details")
                         completed = true
                         synchronized(lock) { lock.notify() }
