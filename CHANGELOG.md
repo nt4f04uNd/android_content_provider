@@ -1,3 +1,8 @@
+## 0.2.1
+
+* Add AndroidContentProvider example and make README setup instructions more clear
+* Avoid breaking changes in Android StandardMessageCodec Flutter 2.13.0 by converting AndroidContentProviderMessageCodec from Kotlin to Java
+
 ## 0.2.0
 
 * Fixed CancellationSignal sometimes throw MissingPluginException on cancel

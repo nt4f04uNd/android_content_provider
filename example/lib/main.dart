@@ -1,5 +1,6 @@
 ///
-/// This example shows off fetching songs from MediaStore with [AndroidContentResolver].
+/// This example shows off fetching songs from MediaStore with [AndroidContentResolver],
+/// and declaring (and calling to) your own [AndroidContentProvider].
 ///
 ///
 
@@ -28,7 +29,18 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    callToMyAndroidContentProvider();
     fetch();
+  }
+
+  /// Calls [MyAndroidContentProvider.delete].
+  ///
+  /// This could have been called by some other app to access our app's functions.
+  Future<void> callToMyAndroidContentProvider() async {
+    await AndroidContentResolver.instance.delete(
+      uri:
+          'content://com.nt4f04und.android_content_provider_example.MyAndroidContentProvider/some_uri',
+    );
   }
 
   void fetch() async {
@@ -65,8 +77,9 @@ class _MyAppState extends State<MyApp> {
         }
       });
 
-      // prints true
-      print(slowSongs.toString() == songs.toString());
+      // Prints true
+      final same = slowSongs.toString() == songs.toString();
+      debugPrint('$same');
     } finally {
       cursor?.close();
     }
@@ -77,7 +90,7 @@ class _MyAppState extends State<MyApp> {
     s.start();
     await callback();
     s.stop();
-    print('elapsed ${s.elapsedMilliseconds}');
+    debugPrint('elapsed ${s.elapsedMilliseconds}');
   }
 
   @override
@@ -99,4 +112,56 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+}
+
+class MyAndroidContentProvider extends AndroidContentProvider {
+  MyAndroidContentProvider(String authority) : super(authority);
+
+  @override
+  Future<int> delete(
+    String uri,
+    String? selection,
+    List<String>? selectionArgs,
+  ) async {
+    debugPrint('delete uri $uri');
+    return 0;
+  }
+
+  @override
+  Future<String?> getType(String uri) async {
+    return null;
+  }
+
+  @override
+  Future<String?> insert(String uri, ContentValues? values) async {
+    return null;
+  }
+
+  @override
+  Future<CursorData?> query(
+    String uri,
+    List<String>? projection,
+    String? selection,
+    List<String>? selectionArgs,
+    String? sortOrder,
+  ) async {
+    return null;
+  }
+
+  @override
+  Future<int> update(
+    String uri,
+    ContentValues? values,
+    String? selection,
+    List<String>? selectionArgs,
+  ) async {
+    return 0;
+  }
+}
+
+@pragma('vm:entry-point')
+void exampleContentProviderEntrypoint() {
+  MyAndroidContentProvider(
+    'com.nt4f04und.android_content_provider_example.MyAndroidContentProvider',
+  );
 }

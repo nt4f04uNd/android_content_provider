@@ -75,6 +75,8 @@ public class MainActivity extends FlutterActivity {
 * Kotlin
 
 ```kotlin
+package com.example.myapp // <-- replace this with your package
+
 import com.nt4f04und.android_content_provider.AndroidContentProvider
 
 class MyAndroidContentProvider : AndroidContentProvider() {
@@ -86,6 +88,8 @@ class MyAndroidContentProvider : AndroidContentProvider() {
 * Java
 
 ```java
+package com.example.myapp; // <-- replace this with your package
+
 import com.nt4f04und.android_content_provider.AndroidContentProvider;
 
 import org.jetbrains.annotations.NotNull;
