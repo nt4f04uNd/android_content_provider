@@ -1,3 +1,8 @@
+## 0.2.2
+
+* Exposed AndroidContentResolver.methodChannel for testing
+* Made ContentObserver onChange and onChangeUris `flags` parameter non-nullable - it will always receive 0 when there are no flags
+
 ## 0.2.1
 
 * Add AndroidContentProvider example and make README setup instructions more clear
