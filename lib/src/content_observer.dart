@@ -30,7 +30,7 @@ abstract class ContentObserver extends Interoperable {
           return onChange(
             args['selfChange'] as bool,
             uri,
-            args['flags'] as int?,
+            args['flags'] as int? ?? 0,
           );
         } catch (error, stack) {
           _reportFlutterError(error, stack);
@@ -42,7 +42,7 @@ abstract class ContentObserver extends Interoperable {
           return onChangeUris(
             args['selfChange'] as bool,
             uris,
-            args['flags'] as int?,
+            args['flags'] as int? ?? 0,
           );
         } catch (error, stack) {
           _reportFlutterError(error, stack);
@@ -69,13 +69,13 @@ abstract class ContentObserver extends Interoperable {
   /// The [selfChange] will be true if this is a self-change notification.
   ///
   /// The [flags] are indicating details about this change.
-  void onChange(bool selfChange, String? uri, int? flags) {}
+  void onChange(bool selfChange, String? uri, int flags) {}
 
   /// Gets called when a content change occurs.
   /// Includes the changed content [uris] when available.
   ///
   /// By default calls [onChange] on all the [uris].
-  void onChangeUris(bool selfChange, List<String> uris, int? flags) {
+  void onChangeUris(bool selfChange, List<String> uris, int flags) {
     for (final uri in uris) {
       onChange(selfChange, uri, flags);
     }
