@@ -204,9 +204,9 @@ Future<void> main() async {
         mimeType: 'image/png',
       );
       expect(result, isNotNull);
-      expect(result!.label, "PNG image");
+      expect(result!.label, contains("PNG"));
       expect(result.icon, hasLength(greaterThan(100)));
-      expect(result.contentDescription, "PNG image");
+      expect(result.contentDescription, contains("PNG"));
     });
 
     // TODO: testing `loadThumbnail` requires exposing [AndroidContentProvider.openTypedAssetFile]
