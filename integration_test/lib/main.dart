@@ -96,12 +96,12 @@ const nullableCursorTest = providerUri + '/nullableCursorTest';
 typedef OnChangeCallback = void Function(
   bool selfChange,
   String? uri,
-  int? flags,
+  int flags,
 );
 typedef OnChangeUrisCallback = void Function(
   bool selfChange,
   List<String> uris,
-  int? flags,
+  int flags,
 );
 
 class TestContentObserver extends ContentObserver {
@@ -115,12 +115,12 @@ class TestContentObserver extends ContentObserver {
   final OnChangeUrisCallback? _onChangeUris;
 
   @override
-  void onChange(bool selfChange, String? uri, int? flags) {
+  void onChange(bool selfChange, String? uri, int flags) {
     _onChange?.call(selfChange, uri, flags);
   }
 
   @override
-  void onChangeUris(bool selfChange, List<String> uris, int? flags) {
+  void onChangeUris(bool selfChange, List<String> uris, int flags) {
     _onChangeUris?.call(selfChange, uris, flags);
   }
 }
@@ -159,12 +159,12 @@ Future<void> main() async {
       (WidgetTester tester) async {
     final completer = Completer();
     final observer = TestContentObserver(
-      onChange: (bool selfChange, String? uri, int? flags) {
+      onChange: (bool selfChange, String? uri, int flags) {
         // Android seems to be always calling through `onChangeUris`.
         fail('onChange is not expected to be called');
         // Can't really test this, so test only onChangeUris.
       },
-      onChangeUris: (bool selfChange, List<String> uris, int? flags) {
+      onChangeUris: (bool selfChange, List<String> uris, int flags) {
         completer.complete();
         final oldDebugPrint = debugPrint;
         // Don't dump errors to console - we call takeException and what's being printed is just a log.
@@ -225,11 +225,11 @@ Future<void> main() async {
       int callCount = 0;
       bool notifyForDescendantsTest = false;
       final observer = TestContentObserver(
-        onChange: (bool selfChange, String? uri, int? flags) {
+        onChange: (bool selfChange, String? uri, int flags) {
           // Android seems to be always calling through `onChangeUris`
           fail('onChange is not expected to be called');
         },
-        onChangeUris: (bool selfChange, List<String> uris, int? flags) {
+        onChangeUris: (bool selfChange, List<String> uris, int flags) {
           callCount += 1;
           if (callCount == 1) {
             // Not self change
@@ -402,11 +402,11 @@ Future<void> main() async {
         Future<void> testCursorObserver(String notificationUri) async {
           final completer = Completer();
           final observer = TestContentObserver(
-            onChange: (bool selfChange, String? uri, int? flags) {
+            onChange: (bool selfChange, String? uri, int flags) {
               // Android seems to be always calling through `onChangeUris`
               fail('onChange is not expected to be called');
             },
-            onChangeUris: (bool selfChange, List<String> uris, int? flags) {
+            onChangeUris: (bool selfChange, List<String> uris, int flags) {
               completer.complete();
             },
           );
