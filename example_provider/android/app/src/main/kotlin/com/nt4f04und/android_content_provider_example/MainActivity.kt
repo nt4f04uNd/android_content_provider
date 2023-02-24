@@ -1,4 +1,4 @@
-package com.nt4f04und.android_content_resolver_example
+package com.nt4f04und.android_content_provider_example
 
 import android.content.Context
 import com.nt4f04und.android_content_provider.AndroidContentProvider

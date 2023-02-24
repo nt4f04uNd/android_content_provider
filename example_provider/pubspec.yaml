@@ -1,4 +1,4 @@
-name: android_content_resolver_example
+name: android_content_provider_example
 description: Demonstrates how to use the android_content_provider plugin.
 publish_to: 'none'
 
@@ -8,10 +8,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  riverpod: ^2.2.0
-  flutter_riverpod: ^2.2.0
-  hooks_riverpod: ^2.2.0
-  flutter_hooks: ^0.18.6
+  permission_handler: ^10.2.0
 
   android_content_provider:
     path: ../

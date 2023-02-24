@@ -1,9 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.nt4f04und.android_content_resolver_example">
+    package="com.nt4f04und.android_content_provider_example">
    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
    <application
-        android:label="android_content_resolver_example"
+        android:label="android_content_provider_example"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -31,11 +31,12 @@
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
             android:name="flutterEmbedding"
-            android:value="2" />\
+            android:value="2" />
+            
+        <provider
+            android:name=".MyAndroidContentProvider"
+            android:authorities="com.nt4f04und.android_content_provider_example.MyAndroidContentProvider"
+            android:exported="true" />
 
     </application>
-
-    <queries>
-        <package android:name="com.nt4f04und.android_content_provider_example" />
-    </queries>
 </manifest>
