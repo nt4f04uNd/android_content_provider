@@ -9,11 +9,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:android_content_provider/android_content_provider.dart';
 import 'package:collection/collection.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Permission.storage.request();
   runApp(const MyApp());
 }
 

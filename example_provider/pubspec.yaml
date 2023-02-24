@@ -8,7 +8,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  permission_handler: ^10.2.0
 
   android_content_provider:
     path: ../

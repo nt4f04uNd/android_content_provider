@@ -6,6 +6,7 @@ import 'package:android_content_provider/android_content_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class MediaStoreSongsPage extends HookConsumerWidget {
   const MediaStoreSongsPage({Key? key}) : super(key: key);
@@ -65,6 +66,8 @@ class MediaStoreSongsManager {
   MediaStoreSongsManager(this._mediaStoreSongsStateHolder);
 
   Future<void> init() async {
+    await Permission.storage.request();
+
     final cursor = await AndroidContentResolver.instance.query(
       // MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
       uri: 'content://media/external/audio/media',

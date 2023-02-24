@@ -33,7 +33,24 @@ class BooksPage extends HookConsumerWidget {
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : state.success == false
-              ? const Center(child: Text("Couldn't fetch books. Did you install the `example_provider` app?"))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          "Couldn't fetch books. Did you install the `example_provider` app?",
+                          textAlign: TextAlign.center,
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.refresh),
+                          onPressed: bookDataManager.query,
+                        )
+                      ],
+                    ),
+                  ),
+                )
               : books!.isEmpty
                   ? const Center(child: Text('No books'))
                   : ListView.builder(
