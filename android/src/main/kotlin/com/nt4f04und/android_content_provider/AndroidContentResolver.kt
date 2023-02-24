@@ -103,9 +103,10 @@ internal class AndroidContentResolver(
                 "getTypeInfo" -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         val info = contentResolver.getTypeInfo(args!!["mimeType"] as String)
+                        val drawable = info.icon.loadDrawable(context)
                         result.success(mapOf(
                                 "label" to info.label,
-                                "icon" to bitmapToBytes(info.icon.loadDrawable(context).toBitmap()),
+                                "icon" to if (drawable != null) bitmapToBytes(drawable.toBitmap()) else byteArrayOf(),
                                 "contentDescription" to info.contentDescription))
                     } else {
                         result.success(null)
@@ -239,7 +240,7 @@ internal class AndroidContentResolver(
                     contentResolver.registerContentObserver(
                             getUri(args["uri"]),
                             args["notifyForDescendants"] as Boolean,
-                            registrableObserver.observer!!)
+                            registrableObserver.observer)
                     result.success(null)
                 }
                 "uncanonicalize" -> {

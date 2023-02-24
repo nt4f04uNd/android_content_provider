@@ -38,7 +38,7 @@ abstract class ContentObserver extends Interoperable {
         }
       case 'onChangeUris':
         try {
-          final uris = _asList<String>(args!['uris'])!;
+          final uris = _asList<String?>(args!['uris'])!;
           return onChangeUris(
             args['selfChange'] as bool,
             uris,
@@ -75,7 +75,7 @@ abstract class ContentObserver extends Interoperable {
   /// Includes the changed content [uris] when available.
   ///
   /// By default calls [onChange] on all the [uris].
-  void onChangeUris(bool selfChange, List<String> uris, int flags) {
+  void onChangeUris(bool selfChange, List<String?> uris, int flags) {
     for (final uri in uris) {
       onChange(selfChange, uri, flags);
     }

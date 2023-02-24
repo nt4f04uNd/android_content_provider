@@ -1,3 +1,11 @@
+## 0.3.0
+
+* Fixed a signature of `ContentObserver.onChangeUris` to have nullable URIs list, instead of non-nullable, because it might receive such. This happens in cases where notification is received by a ContentObserver registered with `NativeCursor.registerContentObserver`.
+* Fix broken compilation, which happened due to nullablity changes in Android SDK in `Icon.loadDrawable`.
+* Add an explanatory hint logging for a case when `MatrixCursorData.notificationUris` contain invalid URIs. Added same explanation to docs of the parameter as well.
+* Refactor example: separate `example` and `example_provider` to separately show how to work with AndroidContentProvider and AndroidContentResolver.
+* Add a better, but simple, example of both provider and resolver - a collection of books.
+
 ## 0.2.2
 
 * Exposed AndroidContentResolver.methodChannel for testing
