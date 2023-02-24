@@ -75,7 +75,7 @@ class RegistrableContentObserver private constructor(
             ))
         }
 
-        override fun onChange(selfChange: Boolean, uris: Collection<Uri>, flags: Int) {
+        override fun onChange(selfChange: Boolean, uris: Collection<Uri?>, flags: Int) {
             registryObserver.methodChannel?.invokeMethod("onChangeUris", mapOf(
                     "selfChange" to selfChange,
                     "uris" to uris,

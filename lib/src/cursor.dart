@@ -153,6 +153,8 @@ class NativeCursor extends Interoperable {
   //
 
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#setnotificationuri
+  ///
+  /// {@macro cursor.notificationUris}
   Future<void> setNotificationUri(String uri) {
     assert(!_closed);
     return _methodChannel.invokeMethod<bool>('setNotificationUri', {
@@ -161,6 +163,8 @@ class NativeCursor extends Interoperable {
   }
 
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#setnotificationuris
+  ///
+  /// {@macro cursor.notificationUris}
   @RequiresApiOrNoop(29)
   Future<void> setNotificationUris(List<String> uris) {
     assert(!_closed);
@@ -195,16 +199,14 @@ class NativeCursor extends Interoperable {
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getextras
   Future<BundleMap> getExtras() async {
     assert(!_closed);
-    final result =
-        await _methodChannel.invokeMapMethod<String, Object?>('getExtras');
+    final result = await _methodChannel.invokeMapMethod<String, Object?>('getExtras');
     return result!;
   }
 
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#respond
   Future<BundleMap> respond(BundleMap extras) async {
     assert(!_closed);
-    final result = await _methodChannel
-        .invokeMapMethod<String, Object?>('respond', {'extras': extras});
+    final result = await _methodChannel.invokeMapMethod<String, Object?>('respond', {'extras': extras});
     return result!;
   }
 
@@ -265,8 +267,7 @@ class NativeCursorGetBatch {
   /// won't start before the ongoing commit ends.
   Future<List<Object?>> commit() async {
     assert(!_cursor._closed);
-    final result = await _cursor._methodChannel
-        .invokeListMethod<Object?>('commitGetBatch', {
+    final result = await _cursor._methodChannel.invokeListMethod<Object?>('commitGetBatch', {
       'operations': _operations,
     });
     _correctResult(result!);
@@ -291,8 +292,7 @@ class NativeCursorGetBatch {
     if (start == end) {
       return [];
     }
-    final result = await _cursor._methodChannel
-        .invokeListMethod<List<Object?>>('commitRangeGetBatch', {
+    final result = await _cursor._methodChannel.invokeListMethod<List<Object?>>('commitRangeGetBatch', {
       'operations': _operations,
       'start': start,
       'end': end,
@@ -468,7 +468,27 @@ abstract class CursorData {
   /// Actual payload data.
   Object? get payload;
 
-  /// A map with extra values.
+  /// {@template cursor.notificationUris}
+  /// A list of URIs to watch the content changes.
+  ///
+  /// Typically it should match with the URI of some resource
+  /// of your content provider, that matches this Cursor's content.
+  ///
+  /// This is needed so the receiver of the cursor could observe changes,
+  /// and re-request the data, if they want.
+  ///
+  /// Speaking in detail, this is needed so that [ContentObserver]s, registered with
+  /// [NativeCursor.registerContentObserver], would receive updates from
+  /// [AndroidContentResolver.notifyChange], which [AndroidContentProvider]
+  /// implementation might call when some of its content changes.
+  ///
+  /// If you provide an invalid notification URI, the system will throw
+  /// a security exception
+  ///
+  /// ```
+  /// java.lang.SecurityException: Failed to find provider null for user 0; expected to find a valid ContentProvider for this authority
+  /// ```
+  /// {@endtemplate}
   @RequiresApiOr(29, "If set on lower API, only the first entry will be used")
   final List<String>? notificationUris;
 
@@ -555,8 +575,7 @@ class MatrixCursorData extends CursorData {
 /// A counterpart of MatrixCursor.RowBuilder
 /// https://developer.android.com/reference/android/database/MatrixCursor.RowBuilder
 class MatrixCursorDataRowBuilder {
-  MatrixCursorDataRowBuilder._(int row, this._cursorData)
-      : _index = row * _cursorData._columnCount {
+  MatrixCursorDataRowBuilder._(int row, this._cursorData) : _index = row * _cursorData._columnCount {
     _endIndex = _index + _cursorData._columnCount;
   }
 

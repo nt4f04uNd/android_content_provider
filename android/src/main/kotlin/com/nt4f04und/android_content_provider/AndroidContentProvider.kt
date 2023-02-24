@@ -14,6 +14,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import com.nt4f04und.android_content_provider.AndroidContentProvider.Companion.getFlutterEngineGroup
 import io.flutter.FlutterInjector
+import io.flutter.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.engine.FlutterEngineGroup
 import io.flutter.embedding.engine.dart.DartExecutor
@@ -401,12 +402,22 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
 
         val cursor = DataMatrixCursor(columnNames, data, rowCount)
         notificationUris?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                cursor.setNotificationUris(context!!.contentResolver, it)
-            } else {
-                if (it.isNotEmpty()) {
-                    cursor.setNotificationUri(context!!.contentResolver, it.first())
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    cursor.setNotificationUris(context!!.contentResolver, it)
+                } else {
+                    if (it.isNotEmpty()) {
+                        cursor.setNotificationUri(context!!.contentResolver, it.first())
+                    }
                 }
+            } catch ( e: SecurityException) {
+                Log.i(
+                    "AndroidContentProvider",
+                    "It's likely that you are providing an invalid URI. " +
+                    "Either don't pass `notificationUris` parameter, or make it valid. " +
+                    "Typically it should match with the URI of some resource " +
+                    "of your content provider, that matches this Cursor's content")
+                throw e
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
