@@ -1,10 +1,10 @@
 name: android_content_provider
 description: Flutter plugin to use ContentProvider/ContentResolver APIs on Android
-version: 0.3.0
+version: 0.4.0
 homepage: https://github.com/nt4f04uNd/android_content_provider/
 
 environment:
-  sdk: ">=2.15.0 <3.0.0"
+  sdk: ">=2.15.0 <4.0.0"
   flutter: ">=2.8.0"
 
 dependencies:
@@ -16,7 +16,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^1.0.0
+  flutter_lints: ^2.0.3
 
 flutter:
   plugin:

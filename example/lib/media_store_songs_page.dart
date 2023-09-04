@@ -13,7 +13,8 @@ class MediaStoreSongsPage extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final songs = ref.watch(mediaStoreSongsStateHolderProvider.select((value) => value));
+    final songs =
+        ref.watch(mediaStoreSongsStateHolderProvider.select((value) => value));
     final mediaStoreSongsManager = ref.watch(mediaStoreSongsManagerProvider);
 
     useEffect(() {
@@ -33,7 +34,9 @@ class MediaStoreSongsPage extends HookConsumerWidget {
               itemBuilder: (context, index) {
                 final book = songs[index];
                 return ListTile(
-                  leading: CircleAvatar(child: Text(book.id.toString())),
+                  leading: CircleAvatar(
+                    child: Text(book.id.toString()),
+                  ),
                   title: Text(book.title),
                 );
               },
@@ -42,7 +45,8 @@ class MediaStoreSongsPage extends HookConsumerWidget {
   }
 }
 
-final mediaStoreSongsStateHolderProvider = StateNotifierProvider<MediaStoreSongsStateHolder, List<SongData>?>(
+final mediaStoreSongsStateHolderProvider =
+    StateNotifierProvider<MediaStoreSongsStateHolder, List<SongData>?>(
   (ref) => MediaStoreSongsStateHolder(),
 );
 
@@ -78,7 +82,7 @@ class MediaStoreSongsManager {
     );
     try {
       final end = (await cursor!.batchedGet().getCount().commit()).first as int;
-      final batch = cursor.batchedGet().getInt(0).getString(1);
+      final batch = SongData.createBatch(cursor);
 
       late List<List<Object?>> songsData;
 
@@ -88,7 +92,8 @@ class MediaStoreSongsManager {
         songsData = await batch.commitRange(0, end);
       });
 
-      final songs = songsData.map((data) => SongData.fromCursorData(data)).toList();
+      final songs =
+          songsData.map((data) => SongData.fromCursorData(data)).toList();
       _mediaStoreSongsStateHolder.update(songs);
 
       // Slow!
@@ -105,7 +110,9 @@ class MediaStoreSongsManager {
       final slowSongTitles = slowSongs.map((e) => e.title);
       final same = songTitles.toString() == slowSongTitles.toString();
       // Prints true
-      debugPrint('Slow and fast songs are same: $same $songTitles $slowSongTitles');
+      debugPrint(
+        'Slow and fast songs are same: $same $songTitles $slowSongTitles',
+      );
     } finally {
       cursor?.close();
     }
@@ -141,7 +148,8 @@ class SongData {
       );
 
   /// Returns a markup of what data to get from the cursor.
-  static NativeCursorGetBatch createBatch(NativeCursor cursor) => cursor.batchedGet()
-    ..getInt(0)
-    ..getString(1);
+  static NativeCursorGetBatch createBatch(NativeCursor cursor) =>
+      cursor.batchedGet()
+        ..getInt(0)
+        ..getString(1);
 }

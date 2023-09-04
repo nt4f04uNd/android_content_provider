@@ -2,7 +2,6 @@
 
 import 'dart:async';
 import 'dart:isolate';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -81,15 +80,18 @@ class Stubs {
   ];
 }
 
-const authority = 'com.nt4f04und.android_content_provider_integration_test.IntegrationTestAndroidContentProvider';
+const authority =
+    'com.nt4f04und.android_content_provider_integration_test.IntegrationTestAndroidContentProvider';
 const providerUri = 'content://$authority';
 
-const overflowingContentValuesTest = providerUri + '/overflowingContentValuesTest';
+const overflowingContentValuesTest =
+    providerUri + '/overflowingContentValuesTest';
 const deleteWithExtrasTest = providerUri + '/deleteWithExtrasTest';
 const insertWithExtrasTest = providerUri + '/insertWithExtrasTest';
 const queryWithExtrasTest = providerUri + '/queryWithExtrasTest';
 const updateWithExtrasTest = providerUri + '/updateWithExtrasTest';
-const queryCursorInvalidNotificationUriTest = providerUri + '/queryCursorInvalidNotificationUriTest';
+const queryCursorInvalidNotificationUriTest =
+    providerUri + '/queryCursorInvalidNotificationUriTest';
 const nullableCursorTest = providerUri + '/nullableCursorTest';
 
 final throwsSecurityException = throwsA(isA<PlatformException>().having(
@@ -147,7 +149,8 @@ Future<void> main() async {
 
     // Ping "contentProvider" isolate hosted port
     final receivePort = ReceivePort();
-    IsolateNameServer.lookupPortByName('contentProvider')!.send(receivePort.sendPort);
+    IsolateNameServer.lookupPortByName('contentProvider')!
+        .send(receivePort.sendPort);
     expect(await receivePort.first, 'send back');
     receivePort.close();
 
@@ -168,7 +171,8 @@ Future<void> main() async {
     expect(result, Stubs.number);
   });
 
-  testWidgets("ContentObserver reports exceptions", (WidgetTester tester) async {
+  testWidgets("ContentObserver reports exceptions",
+      (WidgetTester tester) async {
     final completer = Completer();
     final observer = TestContentObserver(
       onChange: (bool selfChange, String? uri, int flags) {
@@ -246,7 +250,11 @@ Future<void> main() async {
           if (callCount == 1) {
             // Not self change
             expect(selfChange, false);
-            expect(uris, [notifyForDescendantsTest ? providerUri + '/descendantUriShouldNotify' : providerUri]);
+            expect(uris, [
+              notifyForDescendantsTest
+                  ? providerUri + '/descendantUriShouldNotify'
+                  : providerUri
+            ]);
             expect(flags, flags);
           } else if (callCount == 2) {
             // Self change
@@ -287,7 +295,8 @@ Future<void> main() async {
           flags: flags,
         );
       } finally {
-        await AndroidContentResolver.instance.unregisterContentObserver(observer);
+        await AndroidContentResolver.instance
+            .unregisterContentObserver(observer);
       }
       await AndroidContentResolver.instance.notifyChange(
         uri: providerUri,
@@ -309,7 +318,8 @@ Future<void> main() async {
           flags: flags,
         );
       } finally {
-        await AndroidContentResolver.instance.unregisterContentObserver(observer);
+        await AndroidContentResolver.instance
+            .unregisterContentObserver(observer);
       }
       expect(callCount, 1);
     });
@@ -400,7 +410,8 @@ Future<void> main() async {
       expect(result, Stubs.string);
     });
 
-    test("NativeCursor - general test, also query and queryWithExtras", () async {
+    test("NativeCursor - general test, also query and queryWithExtras",
+        () async {
       Future<void> testCursor(NativeCursor? cursor) async {
         cursor!;
 
@@ -626,8 +637,10 @@ Future<void> main() async {
         sortOrder: null,
       );
 
-      final goodBatch = cursor!.batchedGet()..getColumnIndexOrThrow(Stubs.query_columnNames.first);
-      final badBatch = cursor.batchedGet()..getColumnIndexOrThrow('missing-column');
+      final goodBatch = cursor!.batchedGet()
+        ..getColumnIndexOrThrow(Stubs.query_columnNames.first);
+      final badBatch = cursor.batchedGet()
+        ..getColumnIndexOrThrow('missing-column');
 
       while (await cursor.moveToNext()) {
         expect(() => goodBatch.commit(), returnsNormally);
@@ -725,7 +738,8 @@ void integrationTestContentProviderEntrypoint() async {
       method: callingInfoTest,
       arg: 'start',
     );
-    final resolverResult = await AndroidContentResolver.instance.callWithAuthority(
+    final resolverResult =
+        await AndroidContentResolver.instance.callWithAuthority(
       authority: authority,
       method: callingInfoTest,
       arg: 'end',
@@ -738,8 +752,10 @@ void integrationTestContentProviderEntrypoint() async {
       },
       {
         'getCallingAttributionTag': null,
-        'getCallingPackage': 'com.nt4f04und.android_content_provider_integration_test',
-        'getCallingPackageUnchecked': 'com.nt4f04und.android_content_provider_integration_test',
+        'getCallingPackage':
+            'com.nt4f04und.android_content_provider_integration_test',
+        'getCallingPackageUnchecked':
+            'com.nt4f04und.android_content_provider_integration_test',
       },
     ]);
   });
@@ -846,7 +862,10 @@ class IntegrationTestAndroidContentProvider extends AndroidContentProvider {
   }
 
   @override
-  Future<List<String>?> getStreamTypes(String uri, String mimeTypeFilter) async {
+  Future<List<String>?> getStreamTypes(
+    String uri,
+    String mimeTypeFilter,
+  ) async {
     expect(uri, providerUri);
     expect(mimeTypeFilter, Stubs.string);
     return Stubs.stringList;

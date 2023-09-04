@@ -24,7 +24,9 @@ class MyApp extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton(
-                child: const Text('Books example (provider from example_provider)'),
+                child: const Text(
+                  'Books example (provider from example_provider)',
+                ),
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(builder: (context) => const BooksPage()),
@@ -32,10 +34,14 @@ class MyApp extends StatelessWidget {
                 },
               ),
               ElevatedButton(
-                child: const Text('MediaStore songs example (common Android provider)'),
+                child: const Text(
+                  'MediaStore songs example (common Android provider)',
+                ),
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const MediaStoreSongsPage()),
+                    MaterialPageRoute(
+                      builder: (context) => const MediaStoreSongsPage(),
+                    ),
                   );
                 },
               ),

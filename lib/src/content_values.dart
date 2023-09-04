@@ -48,7 +48,7 @@ class ContentValues {
   }
 
   @override
-  int get hashCode => hashList(_map.values);
+  int get hashCode => Object.hashAll(_map.values);
 
   @override
   String toString() {

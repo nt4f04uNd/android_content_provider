@@ -199,14 +199,16 @@ class NativeCursor extends Interoperable {
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#getextras
   Future<BundleMap> getExtras() async {
     assert(!_closed);
-    final result = await _methodChannel.invokeMapMethod<String, Object?>('getExtras');
+    final result =
+        await _methodChannel.invokeMapMethod<String, Object?>('getExtras');
     return result!;
   }
 
   /// https://developer.android.com/reference/kotlin/android/database/Cursor#respond
   Future<BundleMap> respond(BundleMap extras) async {
     assert(!_closed);
-    final result = await _methodChannel.invokeMapMethod<String, Object?>('respond', {'extras': extras});
+    final result = await _methodChannel
+        .invokeMapMethod<String, Object?>('respond', {'extras': extras});
     return result!;
   }
 
@@ -267,7 +269,8 @@ class NativeCursorGetBatch {
   /// won't start before the ongoing commit ends.
   Future<List<Object?>> commit() async {
     assert(!_cursor._closed);
-    final result = await _cursor._methodChannel.invokeListMethod<Object?>('commitGetBatch', {
+    final result = await _cursor._methodChannel
+        .invokeListMethod<Object?>('commitGetBatch', {
       'operations': _operations,
     });
     _correctResult(result!);
@@ -292,7 +295,8 @@ class NativeCursorGetBatch {
     if (start == end) {
       return [];
     }
-    final result = await _cursor._methodChannel.invokeListMethod<List<Object?>>('commitRangeGetBatch', {
+    final result = await _cursor._methodChannel
+        .invokeListMethod<List<Object?>>('commitRangeGetBatch', {
       'operations': _operations,
       'start': start,
       'end': end,
@@ -575,7 +579,8 @@ class MatrixCursorData extends CursorData {
 /// A counterpart of MatrixCursor.RowBuilder
 /// https://developer.android.com/reference/android/database/MatrixCursor.RowBuilder
 class MatrixCursorDataRowBuilder {
-  MatrixCursorDataRowBuilder._(int row, this._cursorData) : _index = row * _cursorData._columnCount {
+  MatrixCursorDataRowBuilder._(int row, this._cursorData)
+      : _index = row * _cursorData._columnCount {
     _endIndex = _index + _cursorData._columnCount;
   }
 

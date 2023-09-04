@@ -9,11 +9,14 @@ void main() {
 
   group('NativeCursor', () {
     setUp(() {
-      const MethodChannel('com.nt4f04und.android_content_provider/Cursor/id')
-          .setMockMethodCallHandler((call) {
-        return null;
-        // no-op
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('com.nt4f04und.android_content_provider/Cursor/id'),
+        (call) {
+          return null;
+          // no-op
+        },
+      );
     });
 
     test('toString', () {
@@ -34,12 +37,15 @@ void main() {
     test('cursor and batch methods throw when closed, except close() itself',
         () {
       int callCount = 0;
-      const MethodChannel('com.nt4f04und.android_content_provider/Cursor/id')
-          .setMockMethodCallHandler((call) {
-        callCount += 1;
-        expect(call.method, 'close');
-        return null;
-      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('com.nt4f04und.android_content_provider/Cursor/id'),
+        (call) {
+          callCount += 1;
+          expect(call.method, 'close');
+          return null;
+        },
+      );
       final cursor = NativeCursor.fromId('id');
       final batch = cursor.batchedGet();
 

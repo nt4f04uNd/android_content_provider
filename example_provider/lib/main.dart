@@ -69,7 +69,8 @@ class BookData {
       );
 }
 
-const baseUri = 'content://com.nt4f04und.android_content_provider_example.MyAndroidContentProvider';
+const baseUri =
+    'content://com.nt4f04und.android_content_provider_example.MyAndroidContentProvider';
 const booksUri = '$baseUri/books';
 
 class MyAndroidContentProvider extends AndroidContentProvider {
@@ -115,7 +116,8 @@ class MyAndroidContentProvider extends AndroidContentProvider {
       if (id == null) {
         debugPrint('could not find $id');
       } else {
-        final book = _booksDataList.firstWhereOrNull((element) => element.id == id);
+        final book =
+            _booksDataList.firstWhereOrNull((element) => element.id == id);
         if (book != null) {
           _booksDataList.remove(book);
           debugPrint('successfully removed book with id $id');

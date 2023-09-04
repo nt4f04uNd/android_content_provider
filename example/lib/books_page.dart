@@ -14,7 +14,8 @@ class BooksPage extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(booksDataStateHolderProvider.select((value) => value));
+    final state =
+        ref.watch(booksDataStateHolderProvider.select((value) => value));
     final books = state.books;
     final bookDataManager = ref.watch(bookDataManagerProvider);
 
@@ -58,14 +59,18 @@ class BooksPage extends HookConsumerWidget {
                       itemBuilder: (context, index) {
                         final book = books[index];
                         return ListTile(
-                          leading: CircleAvatar(child: Text(book.id.toString())),
+                          leading: CircleAvatar(
+                            child: Text(book.id.toString()),
+                          ),
                           title: Text(book.title),
                           subtitle: Text(book.author),
                         );
                       },
                     ),
       bottomNavigationBar: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Container(
           height: 80,
           color: Theme.of(context).colorScheme.surface,
@@ -83,12 +88,16 @@ class BooksPage extends HookConsumerWidget {
               ),
               IconButton(
                 icon: const Icon(Icons.add),
-                onPressed: () => bookDataManager.insert(int.parse(textEditingController.text.trim())),
+                onPressed: () => bookDataManager.insert(
+                  int.parse(textEditingController.text.trim()),
+                ),
               ),
               const SizedBox(width: 10),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
-                onPressed: () => bookDataManager.delete(int.parse(textEditingController.text.trim())),
+                onPressed: () => bookDataManager.delete(
+                  int.parse(textEditingController.text.trim()),
+                ),
               ),
             ],
           ),
@@ -98,7 +107,8 @@ class BooksPage extends HookConsumerWidget {
   }
 }
 
-final booksDataStateHolderProvider = StateNotifierProvider<BookDataStateHolder, BooksState>(
+final booksDataStateHolderProvider =
+    StateNotifierProvider<BookDataStateHolder, BooksState>(
   (ref) => BookDataStateHolder(),
 );
 
@@ -141,7 +151,8 @@ class BookDataManager {
   BookDataManager(this._bookDataStateHolder);
 
   /// A URI of the content provider defined in `example_provider` app.
-  static const _baseUri = 'content://com.nt4f04und.android_content_provider_example.MyAndroidContentProvider';
+  static const _baseUri =
+      'content://com.nt4f04und.android_content_provider_example.MyAndroidContentProvider';
   static const _booksUri = '$_baseUri/books';
 
   /// Calls [AndroidContentResolver.query].
@@ -161,9 +172,11 @@ class BookDataManager {
 
     // Fetch the data
     final batch = BookData.createBatch(cursor);
-    final bookCount = (await cursor.batchedGet().getCount().commit()).first as int;
+    final bookCount =
+        (await cursor.batchedGet().getCount().commit()).first as int;
     final booksData = await batch.commitRange(0, bookCount);
-    final books = booksData.map((data) => BookData.fromCursorData(data)).toList();
+    final books =
+        booksData.map((data) => BookData.fromCursorData(data)).toList();
 
     _bookDataStateHolder.updateBooks(books);
     _bookDataStateHolder.updateSuccess(true);
@@ -227,10 +240,11 @@ class BookData {
       );
 
   /// Returns a markup of what data to get from the cursor.
-  static NativeCursorGetBatch createBatch(NativeCursor cursor) => cursor.batchedGet()
-    ..getInt(0)
-    ..getString(1)
-    ..getString(2);
+  static NativeCursorGetBatch createBatch(NativeCursor cursor) =>
+      cursor.batchedGet()
+        ..getInt(0)
+        ..getString(1)
+        ..getString(2);
 
   ContentValues toContentValues() => ContentValues()
     ..putInt('id', id)
