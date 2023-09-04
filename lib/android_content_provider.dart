@@ -6,6 +6,8 @@ library android_content_provider;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math' as math;
+// This was only exported in Flutter 3.3.0 https://github.com/flutter/flutter/commit/526ca0d498120e93efbdd25f8824825dd7b6b13f
+// ignore: unnecessary_import
 import 'dart:typed_data';
 
 import 'package:async/async.dart';

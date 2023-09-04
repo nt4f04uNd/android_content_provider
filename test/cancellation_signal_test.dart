@@ -13,7 +13,8 @@ void main() {
 
     test('constructor and dispose', () async {
       int initCount = 0;
-      channel.setMockMethodCallHandler((call) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) {
         initCount += 1;
         expect(call.method, 'init');
         return null;
@@ -61,7 +62,8 @@ void main() {
       });
       await channel.invokeMockMethod('init', null);
       final completer = Completer<void>();
-      channel.setMockMethodCallHandler((call) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) {
         completer.complete();
         return null;
       });
@@ -74,11 +76,11 @@ void main() {
 }
 
 extension MethodChannelMockInvoke on MethodChannel {
-  Future<void> invokeMockMethod(String method, dynamic arguments) async {
+  Future<ByteData?> invokeMockMethod(String method, dynamic arguments) async {
     const codec = StandardMethodCodec();
     final data = codec.encodeMethodCall(MethodCall(method, arguments));
 
-    return ServicesBinding.instance.defaultBinaryMessenger
+    return TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .handlePlatformMessage(
       name,
       data,

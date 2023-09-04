@@ -229,8 +229,7 @@ class AndroidContentResolver {
     String? arg,
     BundleMap? extras,
   }) {
-    return methodChannel
-        .invokeMapMethod<String, Object?>('callWithAuthority', {
+    return methodChannel.invokeMapMethod<String, Object?>('callWithAuthority', {
       'authority': authority,
       'method': method,
       'arg': arg,
