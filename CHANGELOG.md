@@ -1,3 +1,7 @@
+### 0.4.1
+
+* Support uuid 4.0.0
+
 ### 0.4.0
 
 * Use Gradle 8.x - you need to use Gradle 8.x, as well as Gradle wrapper 8.x and upgrade your kotlin-gradle-plugin to 1.9.10
