@@ -37,10 +37,10 @@ import java.lang.Exception
  * Once the content provider is created, it is not destroyed, until the app process is.
  */
 abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
-    val lifecycleRegistry: LifecycleRegistry by lazy {
+    override val lifecycle get() = lifecycleRegistry
+    private val lifecycleRegistry: LifecycleRegistry by lazy {
         LifecycleRegistry(this)
     }
-    override val lifecycle get() = lifecycleRegistry
     private lateinit var engine: FlutterEngine
     private lateinit var methodChannel: SynchronousMethodChannel
     private lateinit var trackingMapFactory: TrackingMapFactory
