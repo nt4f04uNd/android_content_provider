@@ -37,7 +37,10 @@ import java.lang.Exception
  * Once the content provider is created, it is not destroyed, until the app process is.
  */
 abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
-    private var lifecycle: LifecycleRegistry? = null
+    override val lifecycle get() = lifecycleRegistry
+    private val lifecycleRegistry: LifecycleRegistry by lazy {
+        LifecycleRegistry(this)
+    }
     private lateinit var engine: FlutterEngine
     private lateinit var methodChannel: SynchronousMethodChannel
     private lateinit var trackingMapFactory: TrackingMapFactory
@@ -90,26 +93,14 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
      */
     abstract val entrypointName: String // TODO: eventually replace it with initialArguments
 
-    override fun getLifecycle(): Lifecycle {
-        ensureLifecycleInitialized()
-        return lifecycle!!
-    }
-
-    private fun ensureLifecycleInitialized() {
-        if (lifecycle == null) {
-            lifecycle = LifecycleRegistry(this)
-        }
-    }
-
     @CallSuper
     override fun onCreate(): Boolean {
         val flutterLoader = FlutterInjector.instance().flutterLoader()
         flutterLoader.startInitialization(context!!.applicationContext)
         val entrypoint = DartExecutor.DartEntrypoint(flutterLoader.findAppBundlePath(), entrypointName)
         val engineGroup = getFlutterEngineGroup(context!!)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine = engineGroup.createAndRunEngine(context!!, entrypoint)
-        ensureLifecycleInitialized()
-        lifecycle!!.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle!!)
         trackingMapFactory = TrackingMapFactory(engine.dartExecutor.binaryMessenger)
         methodChannel = SynchronousMethodChannel(MethodChannel(
