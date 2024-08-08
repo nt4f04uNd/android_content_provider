@@ -1,3 +1,7 @@
+### 0.4.2
+
+* Fix build issue with Flutter 3.24.0.
+
 ### 0.4.1
 
 * Support uuid 4.0.0
