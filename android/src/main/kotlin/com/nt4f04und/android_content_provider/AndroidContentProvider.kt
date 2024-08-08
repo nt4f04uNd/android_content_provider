@@ -37,9 +37,10 @@ import java.lang.Exception
  * Once the content provider is created, it is not destroyed, until the app process is.
  */
 abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
-    override val lifecycle: Lifecycle by lazy { 
+    val lifecycleRegistry: LifecycleRegistry by lazy {
         LifecycleRegistry(this)
     }
+    override val lifecycle get() = lifecycleRegistry
     private lateinit var engine: FlutterEngine
     private lateinit var methodChannel: SynchronousMethodChannel
     private lateinit var trackingMapFactory: TrackingMapFactory
@@ -98,6 +99,7 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         flutterLoader.startInitialization(context!!.applicationContext)
         val entrypoint = DartExecutor.DartEntrypoint(flutterLoader.findAppBundlePath(), entrypointName)
         val engineGroup = getFlutterEngineGroup(context!!)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine = engineGroup.createAndRunEngine(context!!, entrypoint)
         engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle!!)
         trackingMapFactory = TrackingMapFactory(engine.dartExecutor.binaryMessenger)
