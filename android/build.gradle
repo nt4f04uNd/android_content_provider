@@ -47,6 +47,13 @@ android {
 
     defaultConfig {
         minSdkVersion 16
+
+        buildFeatures {
+            buildConfig true
+        }
+
+        // Auto-detect which lifecycle API to use based on Flutter version
+        buildConfigField "boolean", "USE_LIFECYCLE_PROPERTY", "${shouldUseLifecycleProperty()}"
     }
 }
 
@@ -54,3 +61,178 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation "androidx.core:core-ktx:1.7.0"
 }
+
+def log(String message) {
+    println "[android_content_provider] $message"
+}
+
+// Function to determine if the property-based API should be used
+def shouldUseLifecycleProperty() {
+    def flutterInfo = getFlutterVersionInfo()
+    
+    if (flutterInfo.version != null) {
+        def usePropertyApi = compareVersions(flutterInfo.version, "3.24.0") >= 0
+        log "📚 Detected Flutter version ${flutterInfo.version} from ${flutterInfo.source}, using ${usePropertyApi ? 'property' : 'method'}-based lifecycle API"
+        return usePropertyApi.toString()
+    } else {
+        // If version cannot be detected, default to false
+        log "⚠️ Couldn't detect Flutter version, defaulting to method-based API"
+        return "false"
+    }
+}
+
+// Function to get the Flutter version and source
+def getFlutterVersionInfo() {
+    def sdkPath = findFlutterSdkPath()
+    def version = sdkPath ? new File("$sdkPath/version").text.trim() : null
+    def source = sdkPath ? "SDK Path: $sdkPath" : "Unknown"
+
+    return [version: version, source: source]
+}
+
+// Function to find the Flutter SDK path using various strategies
+def findFlutterSdkPath() {
+    def sdkLocations = [
+        [path: project.findProperty('flutter.sdk'), source: "project properties"],
+        [path: project.rootProject.findProperty('flutter.sdk'), source: "root project properties"],
+        [path: project.gradle.rootProject.findProperty('flutter.sdk'), source: "Gradle root project properties"],
+        [path: System.getenv('FLUTTER_ROOT'), source: "environment variable FLUTTER_ROOT"],
+        [path: System.getenv('FLUTTER_HOME'), source: "environment variable FLUTTER_HOME"]
+    ]
+
+    // Check local.properties up the project hierarchy
+    File currentDir = project.projectDir
+    while (currentDir != null) {
+        def localProperties = new File(currentDir, "local.properties")
+        if (localProperties.exists()) {
+            Properties properties = new Properties()
+            localProperties.withInputStream { properties.load(it) }
+            sdkLocations.add([path: properties['flutter.sdk'], source: "local.properties in ${currentDir}"])
+        }
+        currentDir = currentDir.parentFile
+    }
+
+    // Find the first valid SDK path
+    def sdkEntry = sdkLocations.find { it.path != null && new File(it.path).exists() }
+
+    if (sdkEntry != null) {
+        log "✅ Found Flutter SDK at: ${sdkEntry.path} (${sdkEntry.source})"
+    } else {
+        log "❌ Flutter SDK not found after trying multiple detection strategies"
+    }
+    
+    return sdkEntry?.path
+}
+
+// Function to compare version strings
+def compareVersions(String version1, String version2) {
+    def v1 = version1.tokenize('.')
+    def v2 = version2.tokenize('.')
+    
+    def length = Math.max(v1.size(), v2.size())
+    
+    for (int i = 0; i < length; i++) {
+        def num1 = i < v1.size() ? v1[i].toInteger() : 0
+        def num2 = i < v2.size() ? v2[i].toInteger() : 0
+        
+        if (num1 > num2) {
+            return 1
+        } else if (num1 < num2) {
+            return -1
+        }
+    }
+    
+    return 0
+}
+
+// Add this task to modify the source file before compilation
+task switchLifecycleImplementation {
+    doLast {
+        def useLifecycleProperty = android.defaultConfig.buildConfigFields.get("USE_LIFECYCLE_PROPERTY").value == "true"
+        
+        def file = file('src/main/kotlin/com/nt4f04und/android_content_provider/AndroidContentProvider.kt')
+        def content = file.text
+        def originalContent = file.text
+
+        // Register the cleanup task
+        gradle.buildFinished { result ->
+            // Read the current file content (which might have been modified during the build)
+            def currentContent = file.text
+            
+            // Uncomment both code blocks by removing // from each line
+            def uncommentedContent = currentContent
+            
+            // Uncomment property implementation
+            uncommentedContent = uncommentedContent.replaceAll(
+                '(?s)(// LIFECYCLE_PROPERTY_IMPLEMENTATION_START\\s*)(.*?)(\\s*// LIFECYCLE_PROPERTY_IMPLEMENTATION_END)',
+                { matchResult, group1, group2, group3 ->
+                    def lines = group2.split('\n')
+                    def uncommentedLines = lines.collect { line -> 
+                        line.trim().startsWith("//") ? line.replaceFirst("//\\s*", "") : line 
+                    }.join('\n')
+                    return group1 + uncommentedLines + group3
+                }
+            )
+            
+            // Uncomment method implementation
+            uncommentedContent = uncommentedContent.replaceAll(
+                '(?s)(// LIFECYCLE_METHOD_IMPLEMENTATION_START\\s*)(.*?)(\\s*// LIFECYCLE_METHOD_IMPLEMENTATION_END)',
+                { matchResult, group1, group2, group3 ->
+                    def lines = group2.split('\n')
+                    def uncommentedLines = lines.collect { line -> 
+                        line.trim().startsWith("//") ? line.replaceFirst("//\\s*", "") : line 
+                    }.join('\n')
+                    return group1 + uncommentedLines + group3
+                }
+            )
+            
+            // Write the uncommmented content back to the file
+            file.text = uncommentedContent
+            
+            log "Removed comments from code blocks in AndroidContentProvider.kt after build completion."
+        }
+        
+        if (useLifecycleProperty) {
+            // Uncomment property implementation, comment method implementation
+            content = content.replaceAll(
+                '(?s)(// LIFECYCLE_PROPERTY_IMPLEMENTATION_START\\s*)(?://\\s*)?(.*?)(\\s*// LIFECYCLE_PROPERTY_IMPLEMENTATION_END)',
+                '$1$2$3'
+            )
+            
+            // Add DOTALL (?s) flag and use a closure to comment each line individually
+            content = content.replaceAll(
+                '(?s)(// LIFECYCLE_METHOD_IMPLEMENTATION_START\\s*)(.*?)(\\s*// LIFECYCLE_METHOD_IMPLEMENTATION_END)',
+                { matchResult, group1, group2, group3 ->
+                    def lines = group2.split('\n')
+                    def commentedLines = lines.collect { line -> 
+                        line.trim() ? "// $line" : line 
+                    }.join('\n')
+                    return group1 + commentedLines + group3
+                }
+            )
+        } else {
+            // Comment property implementation, uncomment method implementation
+            content = content.replaceAll(
+                '(?s)(// LIFECYCLE_PROPERTY_IMPLEMENTATION_START\\s*)(.*?)(\\s*// LIFECYCLE_PROPERTY_IMPLEMENTATION_END)',
+                { matchResult, group1, group2, group3 ->
+                    def lines = group2.split('\n')
+                    def commentedLines = lines.collect { line -> 
+                        line.trim() ? "// $line" : line 
+                    }.join('\n')
+                    return group1 + commentedLines + group3
+                }
+            )
+            
+            content = content.replaceAll(
+                '(?s)(// LIFECYCLE_METHOD_IMPLEMENTATION_START\\s*)(?://\\s*)?(.*?)(\\s*// LIFECYCLE_METHOD_IMPLEMENTATION_END)',
+                '$1$2$3'
+            )
+        }
+        
+        file.text = content
+        log "Configured AndroidContentProvider.kt for ${useLifecycleProperty ? 'property' : 'method'} implementation"
+    }
+}
+
+// Run this task before compilation
+preBuild.dependsOn switchLifecycleImplementation

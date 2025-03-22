@@ -1,3 +1,7 @@
+### 0.4.3
+
+* Fixed compatibility with all Flutter versions (both below and above 3.24.0) via build script automation. Previous release was incompatible with Flutter versions below 3.24.0.
+
 ### 0.4.2
 
 * Fix build issue with Flutter 3.24.0.
