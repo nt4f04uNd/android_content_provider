@@ -1,3 +1,9 @@
+### 0.5.0
+
+* Support Flutter 3.29.0+
+  * Migrate to declarative Gradle https://docs.flutter.dev/release/breaking-changes/flutter-gradle-plugin-apply
+* **Breaking change**: change Flutter constraint to '>=3.16.0', because Kotlin DSL support was added starting from this version
+
 ### 0.4.3
 
 * Fixed compatibility with all Flutter versions (both below and above 3.24.0) via build script automation. Previous release was incompatible with Flutter versions below 3.24.0.

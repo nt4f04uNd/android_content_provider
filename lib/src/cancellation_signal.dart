@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// Provides the ability to cancel an operation in progress
 /// https://developer.android.com/reference/android/os/CancellationSignal

@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// A communication interface with native Android ContentProvider
 /// https://developer.android.com/reference/android/content/ContentProvider
@@ -238,7 +238,7 @@ abstract class AndroidContentProvider {
   //
   //
 
-  /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
+  /// `bulkInsert(uri: Uri, values: Array<ContentValues!>): Int`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#bulkinsert
   Future<int> bulkInsert(String uri, List<ContentValues> values) async {
     for (final value in values) {
@@ -294,7 +294,7 @@ abstract class AndroidContentProvider {
     return result == null ? null : CallingIdentity.fromId(result);
   }
 
-  /// delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int
+  /// `delete(uri: Uri, selection: String?, selectionArgs: Array<String!>?): Int`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#delete
   Future<int> delete(
     String uri,
@@ -379,7 +379,7 @@ abstract class AndroidContentProvider {
   //
   //
 
-  /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
+  /// `getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#getstreamtypes
   Future<List<String>?> getStreamTypes(
     String uri,
@@ -476,7 +476,7 @@ abstract class AndroidContentProvider {
   // For example see https://android.googlesource.com/platform/development/+/4779ab6f9aa4d6b691f051e069ffac31475f850a/samples/NotePad/src/com/example/android/notepad/NotePadProvider.java
   //
 
-  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
+  /// `query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query
   Future<CursorData?> query(
     String uri,
@@ -486,7 +486,7 @@ abstract class AndroidContentProvider {
     String? sortOrder,
   );
 
-  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
+  /// `query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_1
   Future<CursorData?> queryWithSignal(
     String uri,
@@ -499,7 +499,7 @@ abstract class AndroidContentProvider {
     return query(uri, projection, selection, selectionArgs, sortOrder);
   }
 
-  /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
+  /// `query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#query_2
   Future<CursorData?> queryWithExtras(
     String uri,
@@ -572,7 +572,7 @@ abstract class AndroidContentProvider {
     return url;
   }
 
-  /// update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String!>?): Int
+  /// `update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<String!>?): Int`
   /// https://developer.android.com/reference/kotlin/android/content/ContentProvider#update
   Future<int> update(
     String uri,

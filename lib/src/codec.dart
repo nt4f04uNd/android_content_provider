@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 List<T>? _asList<T>(Object? value) {
   return (value as List?)?.cast<T>();
@@ -17,7 +17,7 @@ class _NumberWrapper<T extends num> {
 
 /// A wrapper for value in [ContentValues.putByte].
 class _Byte extends _NumberWrapper<int> {
-  const _Byte(int value) : super(value);
+  const _Byte(super.value);
 
   @override
   String toString() {
@@ -27,7 +27,7 @@ class _Byte extends _NumberWrapper<int> {
 
 /// A wrapper for value in [ContentValues.putShort].
 class _Short extends _NumberWrapper<int> {
-  const _Short(int value) : super(value);
+  const _Short(super.value);
 
   @override
   String toString() {
@@ -41,7 +41,7 @@ class _Short extends _NumberWrapper<int> {
 
 /// A wrapper for value in [ContentValues.putLong].
 class _Long extends _NumberWrapper<int> {
-  const _Long(int value) : super(value);
+  const _Long(super.value);
 
   @override
   String toString() {
@@ -51,7 +51,7 @@ class _Long extends _NumberWrapper<int> {
 
 /// A wrapper for value in [ContentValues.putFloat].
 class _Float extends _NumberWrapper<double> {
-  const _Float(double value) : super(value);
+  const _Float(super.value);
 
   @override
   String toString() {

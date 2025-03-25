@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// This class is used to store a set of values that the content provider/resolver can process
 /// https://developer.android.com/reference/android/content/ContentValues

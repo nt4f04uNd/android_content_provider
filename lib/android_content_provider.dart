@@ -1,7 +1,7 @@
 /// This library exposes ContentProvider and related ContentResolver APIs on Android.
 ///
 /// Read more in the [README](https://github.com/nt4f04uNd/android_content_provider).
-library android_content_provider;
+library;
 
 import 'dart:convert';
 import 'dart:async';

@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// Detailed description of a specific MIME type, including an icon and label that describe the type
 /// https://developer.android.com/reference/android/content/ContentResolver.MimeTypeInfo

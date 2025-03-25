@@ -1,6 +1,7 @@
 ///
 /// This example shows off fetching songs from MediaStore with [AndroidContentResolver].
 ///
+library;
 
 import 'package:android_content_provider/android_content_provider.dart';
 import 'package:flutter/material.dart';
@@ -9,7 +10,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class MediaStoreSongsPage extends HookConsumerWidget {
-  const MediaStoreSongsPage({Key? key}) : super(key: key);
+  const MediaStoreSongsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

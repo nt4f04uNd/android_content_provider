@@ -2,6 +2,7 @@
 /// This example shows off and interaction with [AndroidContentProvider],
 /// defined by `example_provider` app.
 ///
+library;
 
 import 'package:android_content_provider/android_content_provider.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class BooksPage extends HookConsumerWidget {
-  const BooksPage({Key? key}) : super(key: key);
+  const BooksPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,7 +23,9 @@ class BooksPage extends HookConsumerWidget {
     final textEditingController = useTextEditingController();
 
     useEffect(() {
-      bookDataManager.query();
+      WidgetsBinding.instance.addPostFrameCallback((timestamp) {
+        bookDataManager.query();
+      });
       return null;
     }, const []);
 
