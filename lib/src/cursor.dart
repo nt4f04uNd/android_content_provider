@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// The cursor that calls into platform Cursor
 /// https://developer.android.com/reference/android/database/Cursor
@@ -34,12 +34,12 @@ part of android_content_provider;
 class NativeCursor extends Interoperable {
   /// Creates native cursor from an existing ID.
   @visibleForTesting
-  NativeCursor.fromId(String id)
+  NativeCursor.fromId(super.id)
       : _methodChannel = MethodChannel(
           '$_channelPrefix/Cursor/$id',
           _pluginMethodCodec,
         ),
-        super.fromId(id);
+        super.fromId();
 
   /// Supported types in Android SQLite.
   ///
@@ -514,9 +514,8 @@ class MatrixCursorData extends CursorData {
   /// Creates the matrix cursor data.
   MatrixCursorData({
     required List<String> columnNames,
-    required List<String>? notificationUris,
-  })  : _columnNames = List.unmodifiable(columnNames),
-        super(notificationUris: notificationUris);
+    required super.notificationUris,
+  }) : _columnNames = List.unmodifiable(columnNames);
 
   /// All column names, given on cursor data creation.
   List<String> get columnNames => List.unmodifiable(_columnNames);
@@ -611,5 +610,5 @@ class MatrixCursorDataRowBuilder {
 /// https://developer.android.com/reference/android/database/CursorIndexOutOfBoundsException
 class CursorRangeError extends RangeError {
   /// Crerates cursor range error.
-  CursorRangeError(String message) : super(message);
+  CursorRangeError(String super.message);
 }

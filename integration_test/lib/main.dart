@@ -85,14 +85,14 @@ const authority =
 const providerUri = 'content://$authority';
 
 const overflowingContentValuesTest =
-    providerUri + '/overflowingContentValuesTest';
-const deleteWithExtrasTest = providerUri + '/deleteWithExtrasTest';
-const insertWithExtrasTest = providerUri + '/insertWithExtrasTest';
-const queryWithExtrasTest = providerUri + '/queryWithExtrasTest';
-const updateWithExtrasTest = providerUri + '/updateWithExtrasTest';
+    '$providerUri/overflowingContentValuesTest';
+const deleteWithExtrasTest = '$providerUri/deleteWithExtrasTest';
+const insertWithExtrasTest = '$providerUri/insertWithExtrasTest';
+const queryWithExtrasTest = '$providerUri/queryWithExtrasTest';
+const updateWithExtrasTest = '$providerUri/updateWithExtrasTest';
 const queryCursorInvalidNotificationUriTest =
-    providerUri + '/queryCursorInvalidNotificationUriTest';
-const nullableCursorTest = providerUri + '/nullableCursorTest';
+    '$providerUri/queryCursorInvalidNotificationUriTest';
+const nullableCursorTest = '$providerUri/nullableCursorTest';
 
 final throwsSecurityException = throwsA(isA<PlatformException>().having(
   (e) => e.details,
@@ -252,7 +252,7 @@ Future<void> main() async {
             expect(selfChange, false);
             expect(uris, [
               notifyForDescendantsTest
-                  ? providerUri + '/descendantUriShouldNotify'
+                  ? '$providerUri/descendantUriShouldNotify'
                   : providerUri
             ]);
             expect(flags, flags);
@@ -291,7 +291,7 @@ Future<void> main() async {
           flags: flags,
         );
         await AndroidContentResolver.instance.notifyChangeWithList(
-          uris: [providerUri + '/descendantUriShouldNotNotify'],
+          uris: ['$providerUri/descendantUriShouldNotNotify'],
           flags: flags,
         );
       } finally {
@@ -314,7 +314,7 @@ Future<void> main() async {
       );
       try {
         await AndroidContentResolver.instance.notifyChangeWithList(
-          uris: [providerUri + '/descendantUriShouldNotify'],
+          uris: ['$providerUri/descendantUriShouldNotify'],
           flags: flags,
         );
       } finally {
@@ -454,7 +454,7 @@ Future<void> main() async {
           throwsSecurityException,
         );
 
-        const newNotificationUri = providerUri + '/uri';
+        const newNotificationUri = '$providerUri/uri';
         await cursor.setNotificationUri(newNotificationUri);
         expect(await cursor.getNotificationUri(), newNotificationUri);
         expect(await cursor.getNotificationUris(), [newNotificationUri]);

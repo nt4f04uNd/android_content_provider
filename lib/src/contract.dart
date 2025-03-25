@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// An object that can be associated with some native counterpart instance.
 ///

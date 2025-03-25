@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// A communication interface with native Android ContentResolver
 /// https://developer.android.com/reference/android/content/ContentResolver
@@ -138,13 +138,13 @@ class AndroidContentResolver {
 
     String query = columns.join(', ');
 
-    const _collatorPrimary = 0;
-    const _collatorSecondary = 1;
+    const collatorPrimary = 0;
+    const collatorSecondary = 1;
 
     // Interpret PRIMARY and SECONDARY collation strength as no-case collation based
     // on their javadoc descriptions.
     final collation = queryArgs[QUERY_ARG_SORT_COLLATION] as int?;
-    if (collation == _collatorPrimary || collation == _collatorSecondary) {
+    if (collation == collatorPrimary || collation == collatorSecondary) {
       query += " COLLATE NOCASE";
     }
 
@@ -191,7 +191,7 @@ class AndroidContentResolver {
   //
   //
 
-  /// bulkInsert(uri: Uri, values: Array<ContentValues!>): Int
+  /// `bulkInsert(uri: Uri, values: Array<ContentValues!>): Int`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#bulkinsert
   Future<int> bulkInsert({
     required String uri,
@@ -246,7 +246,7 @@ class AndroidContentResolver {
     });
   }
 
-  /// delete(uri: Uri, arg: String?, selectionArgs: Array<String!>?): Int
+  /// `delete(uri: Uri, arg: String?, selectionArgs: Array<String!>?): Int`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#delete
   Future<int> delete({
     required String uri,
@@ -275,7 +275,7 @@ class AndroidContentResolver {
     return result!;
   }
 
-  /// getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?
+  /// `getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String!>?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#getstreamtypes
   Future<List<String>?> getStreamTypes({
     required String uri,
@@ -377,7 +377,7 @@ class AndroidContentResolver {
   //
   //
 
-  /// notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit
+  /// `notifyChange(uris: MutableCollection<Uri!>, observer: ContentObserver?, flags: Int): Unit`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#notifychange_3
   @RequiresApiOrThrows(30)
   Future<void> notifyChangeWithList({
@@ -432,7 +432,7 @@ class AndroidContentResolver {
   //
   //
 
-  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?
+  /// `query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?): Cursor?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query
   Future<NativeCursor?> query({
     required String uri,
@@ -451,7 +451,7 @@ class AndroidContentResolver {
     return result == null ? null : NativeCursor.fromId(result);
   }
 
-  /// query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?
+  /// `query(uri: Uri, projection: Array<String!>?, selection: String?, selectionArgs: Array<String!>?, sortOrder: String?, cancellationSignal: CancellationSignal?): Cursor?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_1
   Future<NativeCursor?> queryWithSignal({
     required String uri,
@@ -477,7 +477,7 @@ class AndroidContentResolver {
     }
   }
 
-  /// query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?
+  /// `query(uri: Uri, projection: Array<String!>?, queryArgs: Bundle?, cancellationSignal: CancellationSignal?): Cursor?`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#query_2
   @RequiresApiOrThrows(26)
   Future<NativeCursor?> queryWithExtras({
@@ -551,7 +551,7 @@ class AndroidContentResolver {
     });
   }
 
-  /// update(uri: Uri, values: ContentValues?, arg: String?, selectionArgs: Array<String!>?): Int
+  /// `update(uri: Uri, values: ContentValues?, arg: String?, selectionArgs: Array<String!>?): Int`
   /// https://developer.android.com/reference/kotlin/android/content/ContentResolver#update
   Future<int> update({
     required String uri,

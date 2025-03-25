@@ -3,6 +3,7 @@
 ///
 /// To see an example of AndroidContentResolver, check out the `example` app.
 ///
+library;
 
 import 'dart:async';
 
@@ -16,7 +17,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +75,7 @@ const baseUri =
 const booksUri = '$baseUri/books';
 
 class MyAndroidContentProvider extends AndroidContentProvider {
-  MyAndroidContentProvider(String authority) : super(authority);
+  MyAndroidContentProvider(super.authority);
 
   final _booksDataList = List.generate(
     10,

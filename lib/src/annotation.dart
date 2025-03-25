@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// Annotation on [AndroidContentProvider] methods.
 ///

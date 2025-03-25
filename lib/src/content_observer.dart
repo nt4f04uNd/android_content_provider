@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 /// Receives call backs for changes to content
 /// https://developer.android.com/reference/android/database/ContentObserver

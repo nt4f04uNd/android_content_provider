@@ -1,4 +1,4 @@
-part of android_content_provider;
+part of '../android_content_provider.dart';
 
 const _uuid = Uuid();
 const _channelPrefix = 'com.nt4f04und.android_content_provider';
