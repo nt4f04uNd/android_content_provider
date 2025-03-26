@@ -1,3 +1,9 @@
+### 0.5.1
+
+* Refactor `SynchronousMethodChannel`
+* Fix `CancellationSignal`
+* Fixes to tests
+
 ### 0.5.0
 
 * Support Flutter 3.29.0+

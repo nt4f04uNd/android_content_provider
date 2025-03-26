@@ -22,7 +22,7 @@ class CancellationSignal extends ReceivedCancellationSignal {
     _cancelListener?.call();
     _initCompleter.operation.then((_) async {
       try {
-        await _methodChannel.invokeMethod<void>('cancel', {'id': id});
+        await _methodChannel.invokeMethod<void>('cancel');
       } catch (e) {
         // Ignore because the signal might be already disposed on native side
       } finally {
@@ -48,7 +48,6 @@ class ReceivedCancellationSignal extends Interoperable {
   ReceivedCancellationSignal.fromId(this._id)
       : __methodChannel =
             MethodChannel('$_channelPrefix/CancellationSignal/$_id') {
-    _initCompleter.complete();
     _methodChannel.setMethodCallHandler(_handleMethodCall);
     _methodChannel.invokeMethod<void>('init');
   }
