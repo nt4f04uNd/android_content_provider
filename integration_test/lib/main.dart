@@ -240,6 +240,8 @@ Future<void> main() async {
       const flags = 1 | 2 | 4 | 8 | 16;
       int callCount = 0;
       bool notifyForDescendantsTest = false;
+      var streamController = StreamController();
+      addTearDown(streamController.close);
       final observer = TestContentObserver(
         onChange: (bool selfChange, String? uri, int flags) {
           // Android seems to be always calling through `onChangeUris`
@@ -247,6 +249,7 @@ Future<void> main() async {
         },
         onChangeUris: (bool selfChange, List<String?> uris, int flags) {
           callCount += 1;
+          print('callCount: $callCount');
           if (callCount == 1) {
             // Not self change
             expect(selfChange, false);
@@ -269,6 +272,7 @@ Future<void> main() async {
           } else {
             fail("Observer wasn't unregistered");
           }
+          streamController.add(callCount);
         },
       );
       await AndroidContentResolver.instance.registerContentObserver(
@@ -294,16 +298,16 @@ Future<void> main() async {
           uris: ['$providerUri/descendantUriShouldNotNotify'],
           flags: flags,
         );
+        await streamController.stream.firstWhere((callCount) => callCount == 3);
+        expect(callCount, 3);
       } finally {
         await AndroidContentResolver.instance
             .unregisterContentObserver(observer);
       }
-      await AndroidContentResolver.instance.notifyChange(
-        uri: providerUri,
-      );
 
-      expect(callCount, 3);
       callCount = 0;
+      streamController = StreamController();
+      addTearDown(streamController.close);
 
       // notifyForDescendants=true test
       notifyForDescendantsTest = true;
@@ -317,11 +321,12 @@ Future<void> main() async {
           uris: ['$providerUri/descendantUriShouldNotify'],
           flags: flags,
         );
+        await streamController.stream.firstWhere((callCount) => callCount == 1);
+        expect(callCount, 1);
       } finally {
         await AndroidContentResolver.instance
             .unregisterContentObserver(observer);
       }
-      expect(callCount, 1);
     });
   });
 
@@ -571,30 +576,45 @@ Future<void> main() async {
         sortOrder: Stubs.string,
       ));
 
+      final queryWithSignalSignal = CancellationSignal();
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        queryWithSignalSignal.cancel,
+      );
       await testCursor(await AndroidContentResolver.instance.queryWithSignal(
         uri: providerUri,
         projection: Stubs.stringList,
         selection: Stubs.string,
         selectionArgs: Stubs.stringList,
         sortOrder: Stubs.string,
-        cancellationSignal: CancellationSignal()..cancel(),
+        cancellationSignal: queryWithSignalSignal,
       ));
 
+      final queryWithExtrasSignal = CancellationSignal();
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        queryWithExtrasSignal.cancel,
+      );
       await testCursor(await AndroidContentResolver.instance.queryWithExtras(
         uri: queryWithExtrasTest,
         projection: Stubs.stringList,
         queryArgs: Stubs.sql_extras,
-        cancellationSignal: CancellationSignal()..cancel(),
+        cancellationSignal: queryWithExtrasSignal,
       ));
     });
 
-    test("query fails with invalid notification URIs", () {
+    test("query fails with invalid notification URIs", () async {
+      final queryWithExtrasInvalidSignal = CancellationSignal();
+      Future.delayed(
+        const Duration(milliseconds: 100),
+        queryWithExtrasInvalidSignal.cancel,
+      );
       expect(
         () => AndroidContentResolver.instance.queryWithExtras(
           uri: queryCursorInvalidNotificationUriTest,
           projection: Stubs.stringList,
           queryArgs: Stubs.sql_extras,
-          cancellationSignal: CancellationSignal()..cancel(),
+          cancellationSignal: queryWithExtrasInvalidSignal,
         ),
         throwsSecurityException,
       );

@@ -36,11 +36,6 @@ class InteroperableCancellationSignal private constructor(
     private val methodChannel get() = channel?.channel
 
     init {
-        if (initialized) {
-            Handler(Looper.getMainLooper()).post {
-                methodChannel?.invokeMethod("init", null)
-            }
-        }
         var cancelledFromDart = false
         var pendingCancel = false
         fun invokeDartCancel() {
@@ -91,9 +86,15 @@ class InteroperableCancellationSignal private constructor(
         signal!!.setOnCancelListener {
             invokeDartCancel()
         }
+
+        if (initialized) {
+            Handler(Looper.getMainLooper()).post {
+                methodChannel?.invokeMethod("init", null)
+            }
+        }
     }
 
-    public override fun destroy() {
+    override fun destroy() {
         super.destroy()
         signal?.setOnCancelListener(null)
         signal = null

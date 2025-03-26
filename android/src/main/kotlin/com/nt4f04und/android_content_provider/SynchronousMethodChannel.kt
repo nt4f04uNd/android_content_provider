@@ -1,5 +1,6 @@
 package com.nt4f04und.android_content_provider
 
+import android.os.ConditionVariable
 import android.os.Handler
 import android.os.Looper
 import io.flutter.plugin.common.MethodChannel
@@ -13,49 +14,40 @@ internal class SynchronousMethodChannel(val methodChannel: MethodChannel) {
     fun invokeMethod(method: String, arguments: Any?): Any? {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             throw IllegalStateException(
-                    "Calling synchronous invokeMethod the UI thread is not supported " +
-                            "as this would lead to a deadlock")
+                "Calling synchronous invokeMethod on the UI thread is not supported " +
+                        "as this would lead to a deadlock")
         }
-        var completed = false
+
+        val condition = ConditionVariable()
         var value: Any? = null
         var error: Exception? = null
-        val lock = Object()
+
         handler.post {
             try {
                 methodChannel.invokeMethod(method, arguments, object : MethodChannel.Result {
                     override fun success(result: Any?) {
                         value = result
-                        completed = true
-                        synchronized(lock) { lock.notify() }
+                        condition.open()
                     }
 
                     override fun error(code: String, msg: String?, details: Any?) {
                         error = Exception("code: $code, message: $msg, details: $details")
-                        completed = true
-                        synchronized(lock) { lock.notify() }
+                        condition.open()
                     }
 
                     override fun notImplemented() {
                         error = Exception("Not implemented")
-                        completed = true
-                        synchronized(lock) { lock.notify() }
+                        condition.open()
                     }
                 })
             } catch (e: Exception) {
                 error = e
-                completed = true
-                synchronized(lock) { lock.notify() }
+                condition.open()
             }
         }
-        try {
-            synchronized(lock) {
-                while (!completed) {
-                    lock.wait()
-                }
-            }
-        } catch (e: InterruptedException) {
-            return null
-        }
+
+        condition.block()
+
         if (error != null) {
             throw error!!
         }
