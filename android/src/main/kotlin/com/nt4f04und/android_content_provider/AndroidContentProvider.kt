@@ -10,8 +10,7 @@ import android.os.*
 import androidx.annotation.CallSuper
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
+import com.nt4f04und.android_content_provider.CompatLifecycleOwner;
 import com.nt4f04und.android_content_provider.AndroidContentProvider.Companion.getFlutterEngineGroup
 import io.flutter.FlutterInjector
 import io.flutter.Log
@@ -36,25 +35,11 @@ import java.lang.Exception
  * In Android, [ContentProvider]s can be created by the system on demand from background.
  * Once the content provider is created, it is not destroyed, until the app process is.
  */
-abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils {
-    // Backward compatibility for older versions of Flutter (pre 3.24.0)
-    // https://github.com/nt4f04uNd/android_content_provider/issues/21
-
-    // LIFECYCLE_PROPERTY_IMPLEMENTATION_START
-    override val lifecycle: Lifecycle get() = lifecycleRegistry
-    // LIFECYCLE_PROPERTY_IMPLEMENTATION_END
-
-    // LIFECYCLE_METHOD_IMPLEMENTATION_START
-    override fun getLifecycle(): Lifecycle = lifecycleRegistry
-    // LIFECYCLE_METHOD_IMPLEMENTATION_END
-
-    private val lifecycleRegistry: LifecycleRegistry by lazy {
-        LifecycleRegistry(this)
-    }
-
+abstract class AndroidContentProvider : ContentProvider(), Utils {
     private lateinit var engine: FlutterEngine
     private lateinit var methodChannel: SynchronousMethodChannel
     private lateinit var trackingMapFactory: TrackingMapFactory
+    private lateinit var lifecycleOwner: CompatLifecycleOwner
 
     companion object {
         private var engineGroup: FlutterEngineGroup? = null
@@ -110,9 +95,10 @@ abstract class AndroidContentProvider : ContentProvider(), LifecycleOwner, Utils
         flutterLoader.startInitialization(context!!.applicationContext)
         val entrypoint = DartExecutor.DartEntrypoint(flutterLoader.findAppBundlePath(), entrypointName)
         val engineGroup = getFlutterEngineGroup(context!!)
-        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        lifecycleOwner = CompatLifecycleOwner()
+        lifecycleOwner.lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
         engine = engineGroup.createAndRunEngine(context!!, entrypoint)
-        engine.contentProviderControlSurface.attachToContentProvider(this, lifecycle!!)
+        engine.contentProviderControlSurface.attachToContentProvider(this, lifecycleOwner.lifecycle)
         trackingMapFactory = TrackingMapFactory(engine.dartExecutor.binaryMessenger)
         methodChannel = SynchronousMethodChannel(MethodChannel(
                 engine.dartExecutor.binaryMessenger,
