@@ -1,0 +1,34 @@
+name: Build Example APK
+on:
+  pull_request:
+  push:
+
+jobs:
+  build_example:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flutter_version: [ 3.10.0, 3.29.2 ]
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ matrix.flutter_version }}
+          channel: stable
+          cache: true
+
+      - name: 💾 Cache Gradle
+        uses: actions/cache@v4
+        with:
+          key: gradle
+          path: /home/runner/.gradle
+
+      - name: 🔨 Build Example Apk
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          cd example
+          flutter build apk --profile
