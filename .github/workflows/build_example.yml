@@ -2,6 +2,10 @@ name: Build Example APK
 on:
   pull_request:
   push:
+    branches:
+      - main
+      - master
+      - 'releases/**'
 
 jobs:
   build_example:
