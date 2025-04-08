@@ -1,3 +1,7 @@
+### 0.5.2
+
+* (Internal change) Simplify Android buildscript, removed log on every build
+
 ### 0.5.1
 
 * Refactor `SynchronousMethodChannel`
